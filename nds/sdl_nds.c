@@ -359,6 +359,8 @@ static void nds_vblank(void)
     if (heap_halt)
         return;
     vbl_count++;
+    if (!NDS_DEBUG) /* NDS-TECLADO2: el vigilante de cuelgues pintaba una raya en el logo */
+        return;
     if (hb_sec != hb_seen_sec) {
         hb_seen_sec = hb_sec;
         hb_seen_vbl = vbl_count;
@@ -2334,6 +2336,7 @@ void nds_vkbd_input(const char *hint, char *buf, int maxlen)
     len = (int)strlen(buf);
     if (len > maxlen) { len = maxlen; buf[len] = 0; }
     shift = (len == 0);
+    lcdMainOnBottom(); /* NDS-TECLADO2: el teclado siempre en la tactil */
     while (dmaBusy(2))
         ;
     do { swiWaitForVBlank(); scanKeys(); } while (keysHeld() & (KEY_A | KEY_B | KEY_START | KEY_TOUCH));
@@ -2411,6 +2414,7 @@ void nds_vkbd_input(const char *hint, char *buf, int maxlen)
     }
     do { swiWaitForVBlank(); scanKeys(); } while (keysHeld() & (KEY_A | KEY_START | KEY_TOUCH));
     memset(top_buf, 0, sizeof top_buf);
+    nds_apply_swap(); /* NDS-TECLADO2: vuelve la eleccion de pantallas del jugador */
 }
 
 static inline void hud_touch(const void *p, unsigned n); /* NDS-HUD5b */
