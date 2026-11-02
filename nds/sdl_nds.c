@@ -106,6 +106,39 @@ static const char *nds_r(const char *rest)
     return b;
 }
 
+/* NDS-OPCIONES: pantallas intercambiadas (1 = juego arriba). Se guarda en saves/pantallas.txt */
+static int nds_swap = -1;
+int nds_get_swap(void)
+{
+    if (nds_swap < 0) {
+        FILE *f = fopen(nds_r("/devilutionx/saves/pantallas.txt"), "r");
+        nds_swap = 0;
+        if (f) {
+            nds_swap = fgetc(f) == '1';
+            fclose(f);
+        }
+    }
+    return nds_swap;
+}
+static void nds_apply_swap(void)
+{
+    if (nds_get_swap())
+        lcdMainOnTop();
+    else
+        lcdMainOnBottom();
+}
+void nds_set_swap(int on)
+{
+    FILE *f;
+    nds_swap = on ? 1 : 0;
+    nds_apply_swap();
+    f = fopen(nds_r("/devilutionx/saves/pantallas.txt"), "w");
+    if (f) {
+        fputc(nds_swap ? '1' : '0', f);
+        fclose(f);
+    }
+}
+
 /* ---- latido de depuracion: hilo propio que escribe contadores cada segundo ---- */
 static volatile int no_page;
 static volatile unsigned hb_flip, hb_poll, hb_delay, hb_ticks, hb_mtx, hb_sec;
@@ -1436,7 +1469,7 @@ SDL_Surface *SDL_SetVideoMode(int w, int h, int bpp, Uint32 flags)
             return NULL;
         }
         memset(video_pixels, 0, SCREEN_BYTES);
-        lcdMainOnBottom(); /* el juego va en la pantalla tactil */
+        nds_apply_swap(); /* NDS-OPCIONES: el juego va en la tactil salvo que se intercambien las pantallas */
         videoSetMode(MODE_5_2D | DISPLAY_BG3_ACTIVE);
         vramSetBankA(VRAM_A_MAIN_BG);
         bg = bgInit(3, BgType_Bmp8, BgSize_B8_256x256, 0, 0);
@@ -1571,6 +1604,9 @@ static int ui_spells; /* NDS-HECHIZOS: lista de hechizos rapidos abierta */
 void nds_ui_spells(int on) { ui_spells = on; }
 static int ui_store; /* NDS-TIENDA2: la tienda esta abierta (recorte ampliado del recuadro) */
 void nds_ui_store(int on) { ui_store = on; }
+static int st_live; /* NDS-TIENDATXT: >0 = la tienda se dibuja con la letra 8x8 */
+static void st_compose(void);
+static int st_touch(u16 *px, u16 *py);
 #define ST_SX 336 /* recuadro de la tienda en la mitad derecha de la interfaz (NDS-TIENDA2b) */
 #define ST_SY 20
 #define ST_SH 318 /* filas de origen (20-337) que ocupan las 192 de la tactil */
@@ -1721,6 +1757,10 @@ static void nds_ui_compose(void)
         spl_compose();
         return;
     }
+    if (st_live > 0) { /* NDS-TIENDATXT */
+        st_compose();
+        return;
+    }
     if (ui_mode >= 3) {
         for (y = 0; y < LCD_H; y++) {
             const int sy = (ui_mode == 3 && ui_dialog) ? y - DLG_OFF : y; /* NDS-DIALOGO: cuadro centrado */
@@ -1827,6 +1867,8 @@ static void nds_touch_map(u16 *px, u16 *py)
         *py = (u16)(y * DQ_SH / LCD_H);
         return;
     }
+    if (st_touch(px, py)) /* NDS-TIENDATXT */
+        return;
     if (ui_mode == 3 && ui_spells) { /* NDS-HECHIZOS */
         *px = (u16)(UI_X0 + SP_SX + x * 7 / 4);
         *py = (u16)(SP_BOT - (LCD_H - y) * 7 / 4);
@@ -2048,6 +2090,168 @@ static void fnt_text(int x, int y, const char *t, Uint8 col)
 {
     for (; *t; t++, x += 8)
         fnt_char(top_buf, x, y, (unsigned char)*t, col);
+}
+
+/* ---------- NDS-TIENDATXT: tiendas con la letra 8x8 a toda la pantalla del juego ---------- */
+#define ST_LINES 24
+typedef struct { char t[96]; Uint8 col, align, ind, sel, div; int price; } StLine;
+static StLine st_l[ST_LINES];
+static char st_gold[48];
+static int st_cur = -1, st_full, st_scroll;
+static short st_y[ST_LINES], st_h[ST_LINES];
+void nds_store_begin(int cur, int full, int scroll)
+{
+    int i;
+    for (i = 0; i < ST_LINES; i++) {
+        st_l[i].t[0] = 0; st_l[i].div = 0; st_l[i].sel = 0; st_l[i].price = 0;
+    }
+    st_gold[0] = 0;
+    st_cur = cur; st_full = full; st_scroll = scroll;
+}
+void nds_store_line(int line, const char *text, int color, int align, int indent, int price, int selectable, int divider)
+{
+    StLine *l;
+    if (line < 0 || line >= ST_LINES)
+        return;
+    l = &st_l[line];
+    nds_ascii(l->t, text ? text : "", sizeof l->t);
+    l->col = (Uint8)(color & 3); l->align = (Uint8)align; l->ind = (Uint8)(indent > 0);
+    l->price = price; l->sel = (Uint8)selectable; l->div = (Uint8)divider;
+}
+void nds_store_gold(const char *text) { nds_ascii(st_gold, text ? text : "", sizeof st_gold); }
+void nds_store_end(void) { st_live = 3; }
+
+static int st_wrap(const char *s, int maxc, char rows[][34], int maxr)
+{
+    int n = 0;
+    if (maxc > 32) maxc = 32;
+    while (*s == ' ') s++;
+    while (*s && n < maxr) {
+        const int len = (int)strlen(s);
+        int cut;
+        if (len <= maxc) { memcpy(rows[n], s, (size_t)len); rows[n][len] = 0; n++; break; }
+        cut = maxc;
+        while (cut > 0 && s[cut] != ' ') cut--;
+        if (cut <= 0) cut = maxc;
+        memcpy(rows[n], s, (size_t)cut); rows[n][cut] = 0; n++;
+        s += cut;
+        while (*s == ' ') s++;
+    }
+    return n;
+}
+static void st_text(int x, int y, const char *t, Uint8 col)
+{
+    for (; *t; t++, x += 8)
+        fnt_char(comp_buf, x, y, (unsigned char)*t, col);
+}
+#define ST_RIGHT (LCD_W - 4 - (st_scroll ? 12 : 0))
+static int st_layout_line(const StLine *l, char rows[][34], int *mc)
+{
+    const int x0 = 4 + (l->ind ? 8 : 0);
+    int n;
+    *mc = (ST_RIGHT - x0) / 8;
+    n = st_wrap(l->t, *mc, rows, 4);
+    if (n > 0 && l->price > 0) {
+        char pr[16];
+        const int pl = snprintf(pr, sizeof pr, "%d", l->price);
+        if ((int)strlen(rows[n - 1]) + 1 + pl > *mc && n < 4)
+            n++, rows[n - 1][0] = 0;
+    }
+    return n;
+}
+static void st_compose(void)
+{
+    static int ok;
+    static unsigned tick;
+    static Uint8 cc[4], cSel, cEdge;
+    char rows[4][34];
+    int i, x, y, total = 0, gap, mc;
+    const int right = ST_RIGHT;
+    st_live--;
+    if (!ok || ++tick >= 120) {
+        dark_build();
+        cc[0] = (Uint8)vk_near(31, 31, 31); cc[1] = (Uint8)vk_near(15, 17, 31);
+        cc[2] = (Uint8)vk_near(31, 9, 9); cc[3] = (Uint8)vk_near(28, 23, 12);
+        cSel = (Uint8)vk_near(10, 7, 3); cEdge = (Uint8)vk_near(20, 16, 9);
+        tick = 0; ok = 1;
+    }
+    for (i = 0; i < LCD_W * LCD_H; i++) /* fondo: el mundo oscurecido */
+        comp_buf[i] = dark_lut[comp_buf[i]];
+    for (gap = 5; gap >= 2; gap -= 3) { /* alturas de cada linea; si no cabe, huecos mas pequenos */
+        total = 3;
+        for (i = 0; i < ST_LINES; i++) {
+            const StLine *l = &st_l[i];
+            int h;
+            if (l->div) h = gap + 1;
+            else if (!l->t[0]) h = gap;
+            else h = st_layout_line(l, rows, &mc) * 9;
+            st_y[i] = (short)total; st_h[i] = (short)h;
+            total += h;
+        }
+        if (total <= LCD_H - 12) break;
+    }
+    for (i = 0; i < ST_LINES; i++) {
+        const StLine *l = &st_l[i];
+        const int yy = st_y[i];
+        if (yy + 8 > LCD_H - 11) { st_h[i] = 0; continue; } /* no cabe: no se dibuja ni se puede tocar */
+        if (l->div) {
+            for (x = 8; x < right - 4; x++)
+                comp_buf[(yy + st_h[i] / 2) * LCD_W + x] = cEdge;
+            continue;
+        }
+        if (!l->t[0])
+            continue;
+        {
+            const int x0 = 4 + (l->ind ? 8 : 0);
+            const int n = st_layout_line(l, rows, &mc);
+            const Uint8 col = cc[l->col & 3];
+            int k;
+            if (i == st_cur)
+                for (y = yy; y < yy + st_h[i] && y < LCD_H; y++)
+                    memset(comp_buf + y * LCD_W + 2, cSel, (size_t)(right - 1));
+            for (k = 0; k < n; k++) {
+                const int len = (int)strlen(rows[k]);
+                int xx = x0;
+                if (l->align == 1) xx = x0 + ((right - x0) - len * 8) / 2;
+                else if (l->align == 2) xx = right - len * 8;
+                st_text(xx, yy + 1 + k * 9, rows[k], col);
+            }
+            if (n > 0 && l->price > 0) {
+                char pr[16];
+                const int pl = snprintf(pr, sizeof pr, "%d", l->price);
+                st_text(right - pl * 8, yy + 1 + (n - 1) * 9, pr, col);
+            }
+        }
+    }
+    if (st_gold[0]) /* oro abajo a la derecha */
+        st_text(right - (int)strlen(st_gold) * 8, LCD_H - 10, st_gold, cc[3]);
+    if (st_scroll) { /* flechas de desplazamiento a la derecha */
+        st_text(LCD_W - 12, 4, "^", cc[3]);
+        st_text(LCD_W - 12, LCD_H - 20, "v", cc[3]);
+        for (y = 14; y < LCD_H - 22; y++)
+            comp_buf[y * LCD_W + LCD_W - 8] = cEdge;
+    }
+    for (x = 0; x < LCD_W; x++) { comp_buf[x] = cEdge; comp_buf[(LCD_H - 1) * LCD_W + x] = cEdge; }
+    for (y = 0; y < LCD_H; y++) { comp_buf[y * LCD_W] = cEdge; comp_buf[y * LCD_W + LCD_W - 1] = cEdge; }
+}
+static int st_touch(u16 *px, u16 *py)
+{
+    const int x = *px, y = *py;
+    int i, hit = -1;
+    if (st_live <= 0)
+        return 0;
+    if (st_scroll && x >= LCD_W - 16) { /* flechas: linea 4 = subir, linea 20 = bajar */
+        hit = y < LCD_H / 2 ? 4 : 20;
+        *px = (u16)(UI_X0 + 606);
+    } else {
+        for (i = 0; i < ST_LINES; i++)
+            if (st_h[i] > 0 && y >= st_y[i] && y < st_y[i] + st_h[i]) { hit = i; break; }
+        if (hit < 0)
+            hit = 3; /* fuera de las lineas: una linea que no hace nada */
+        *px = (u16)(UI_X0 + (st_full ? 320 : 480));
+    }
+    *py = (u16)(32 + hit * 12 + 6);
+    return 1;
 }
 static int vk_near(int r, int g, int b)
 {

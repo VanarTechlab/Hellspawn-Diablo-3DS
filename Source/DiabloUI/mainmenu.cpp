@@ -62,6 +62,12 @@ bool NdsEs()
 constexpr int NdsLangValue = 106;
 constexpr int NdsLangEn = 140;
 constexpr int NdsLangEs = 141;
+constexpr int NdsOptionsValue = 107; /* NDS-OPCIONES */
+constexpr int NdsScreensValue = 108;
+constexpr int NdsScrBottom = 150;
+constexpr int NdsScrTop = 151;
+extern "C" int nds_get_swap(void);
+extern "C" void nds_set_swap(int on);
 void NdsSetLanguage(const char *code)
 {
 	auto &opt = GetOptions().Language.code;
@@ -447,7 +453,6 @@ void MainmenuLoad(const char *name)
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Cinematicas", "Cinematics")), NdsCineMenuValue));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Soundtrack"), NdsSoundValue)); /* NDS-MENU2 */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("BestiarioDex", "BestiaryDex")), NdsBestiaryValue)); /* NDS-BESTIARIO + NDS-BESTIARIODEX */
-		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Idioma", "Language")), NdsLangValue)); /* NDS-IDIOMA */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Credits"), MAINMENU_SHOW_CREDITS));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Creditos DSI Ver.", "DSi Ver. Credits")), NdsCreditsValue));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
@@ -459,6 +464,17 @@ void MainmenuLoad(const char *name)
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NdsEs() ? "English" : "> English"), NdsLangEn));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NdsEs() ? "> Espa\xC3\xB1ol" : "Espa\xC3\xB1ol"), NdsLangEs));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
+	} else if (NdsMenuMode == 5) { /* NDS-OPCIONES: Opciones */
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Pantallas", "Screens")), NdsScreensValue));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Idioma", "Language")), NdsLangValue));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
+	} else if (NdsMenuMode == 6) { /* NDS-OPCIONES: Pantallas */
+		const bool arriba = nds_get_swap() != 0;
+		const char *txtAbajo = NdsEs() ? (arriba ? "Juego en la t\xC3\xA1" "ctil" : "> Juego en la t\xC3\xA1" "ctil") : (arriba ? "Game on touch screen" : "> Game on touch screen");
+		const char *txtArriba = NdsEs() ? (arriba ? "> Juego arriba" : "Juego arriba") : (arriba ? "> Game on top screen" : "Game on top screen");
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(txtAbajo), NdsScrBottom));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(txtArriba), NdsScrTop));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
 	} else if (NdsMenuMode == 2) {
 		for (int i = 0; i < 4; i++) {
 			const bool seen = NdsCineFirstSeen(i) != nullptr;
@@ -469,6 +485,7 @@ void MainmenuLoad(const char *name)
 		vecMenuItems.push_back(std::make_unique<UiListItem>(_("Single Player"), MAINMENU_SINGLE_PLAYER));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(_("Multi Player"), MAINMENU_MULTIPLAYER));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Extras"), NdsExtrasValue));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Opciones", "Options")), NdsOptionsValue)); /* NDS-OPCIONES */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(_("Support"), MAINMENU_SHOW_SUPPORT));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(gbIsHellfire ? _("Exit Hellfire") : _("Exit Diablo"), MAINMENU_EXIT_DIABLO));
 	}
@@ -507,8 +524,9 @@ void MainmenuLoad(const char *name)
 
 #ifdef __NDS__ /* NDS-MENU2: listas largas con letra algo mas pequena */
 	{
-		const bool ndsLarga = vecMenuItems.size() > 5;
-		vecMainMenuDialog.push_back(std::make_unique<UiList>(vecMenuItems, vecMenuItems.size(), uiPosition.x + 64, (uiPosition.y + 192), 510, ndsLarga ? 35 : 43,
+		const bool ndsLarga = NdsMenuMode != 0 && vecMenuItems.size() > 5; /* NDS-OPCIONES */
+		const int ndsAlto = ndsLarga ? 35 : (vecMenuItems.size() > 5 ? 39 : 43); /* NDS-MENUHUECO */
+		vecMainMenuDialog.push_back(std::make_unique<UiList>(vecMenuItems, vecMenuItems.size(), uiPosition.x + 64, (uiPosition.y + 192), 510, ndsAlto,
 		    (ndsLarga ? UiFlags::FontSize30 : UiFlags::FontSize42) | UiFlags::ColorUiGold | UiFlags::AlignCenter, 5));
 	}
 #else
@@ -516,7 +534,7 @@ void MainmenuLoad(const char *name)
 #endif
 
 #ifdef __NDS__ /* NDS-FRONT + NDS-VERSION: letra 24 centrada, un poco mas arriba */
-	const SDL_Rect rect2 = { (Sint16)(uiPosition.x), (Sint16)(uiPosition.y + 480 - 58), 640, 26 };
+	const SDL_Rect rect2 = { (Sint16)(uiPosition.x), (Sint16)(uiPosition.y + 480 - 28), 640, 26 }; /* NDS-MENUHUECO: texto gris mas abajo */
 	vecMainMenuDialog.push_back(std::make_unique<UiArtText>(name, rect2, UiFlags::FontSize24 | UiFlags::ColorUiSilver | UiFlags::AlignCenter));
 #else
 	const SDL_Rect rect2 = { 17, (Sint16)(gnScreenHeight - 36), 605, 21 };
@@ -597,6 +615,15 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 			} else if (r >= NdsTrackBase && r < NdsTrackBase + 6) {
 				music_start(NdsTracks[r - NdsTrackBase]);
 				MainMenuResult = MAINMENU_NONE;
+			} else if (r == NdsOptionsValue) { /* NDS-OPCIONES */
+				NdsMenuMode = 5;
+				MainMenuResult = MAINMENU_NONE;
+			} else if (r == NdsScreensValue) {
+				NdsMenuMode = 6;
+				MainMenuResult = MAINMENU_NONE;
+			} else if (r == NdsScrBottom || r == NdsScrTop) {
+				nds_set_swap(r == NdsScrTop ? 1 : 0);
+				MainMenuResult = MAINMENU_NONE;
 			} else if (r == NdsLangValue) { /* NDS-IDIOMA */
 				NdsMenuMode = 4;
 				MainMenuResult = MAINMENU_NONE;
@@ -606,7 +633,7 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 			} else if (r == NdsBackValue) {
 				if (NdsMenuMode == 3)
 					music_start(TMUSIC_INTRO); /* al salir del Soundtrack vuelve la musica del menu */
-				NdsMenuMode = NdsMenuMode >= 2 ? 1 : 0;
+				NdsMenuMode = (NdsMenuMode == 4 || NdsMenuMode == 6) ? 5 : (NdsMenuMode == 2 || NdsMenuMode == 3) ? 1 : 0; /* NDS-OPCIONES: Idioma y Pantallas vuelven a Opciones */
 				MainMenuResult = MAINMENU_NONE;
 			} else if (r == NdsLockedValue) {
 				MainMenuResult = MAINMENU_NONE;
