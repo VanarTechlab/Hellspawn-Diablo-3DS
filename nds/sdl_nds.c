@@ -3235,6 +3235,38 @@ static void nds_top_img_hide(void)
     nds_top_img_tried = 0; /* la proxima vez que se entre en los menus se vuelve a mostrar */
 }
 
+/* NDS-BESTIARIO6: lista del bestiario en la pantalla de arriba (8 bits -> 16 bits con la paleta) */
+static int top_list_on;
+void nds_top_list(const unsigned char *pix, int pitch)
+{
+    u16 *vr = (u16 *)BG_BMP_RAM_SUB(0);
+    int x, y;
+    if (!video_vram_sub)
+        return;
+    if (!pix) {
+        if (top_list_on) {
+            top_list_on = 0;
+            nds_top_img_hide(); /* en el siguiente fotograma de menu vuelve la imagen de arriba */
+            nds_apply_swap(); /* NDS-BESTIARIO6C: vuelve la eleccion de pantallas del jugador */
+        }
+        return;
+    }
+    if (!top_list_on) {
+        REG_BG3CNT_SUB = BG_BMP16_256x256 | BG_MAP_BASE(0);
+        top_list_on = 1;
+        lcdMainOnBottom(); /* NDS-BESTIARIO6C: el monstruo siempre en la tactil, la lista siempre arriba */
+    }
+    nds_top_img_on = 1; /* que el fotograma de menu no la tape */
+    nds_top_img_tried = 1;
+    ver_drawn = 0;
+    for (y = 0; y < LCD_H; y++) {
+        const unsigned char *src = pix + y * pitch;
+        u16 *d = vr + y * 256;
+        for (x = 0; x < LCD_W; x++)
+            d[x] = (u16)(0x8000 | BG_PALETTE[src[x]]);
+    }
+}
+
 /* NDS-AMISTAD: boton PAZ/PVP en la esquina de la tactil (solo multijugador) */
 static int ui_friendly; /* 0 = sin multijugador, 1 = amistoso, 2 = agresivo */
 static volatile int nds_friendly_req;
