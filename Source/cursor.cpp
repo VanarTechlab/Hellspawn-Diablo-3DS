@@ -647,6 +647,8 @@ void CheckRportal()
 				InfoString = _("Portal to");
 				if (setlevel && setlvlnum == SL_BUTCHERLAIR) /* NDS-GUARIDA3: vuelta al nivel del Carnicero */
 					AddInfoBoxString(std::string(GetLanguageCode().substr(0, 2) == "es" ? "nivel " : "level ") + std::to_string(Quests[Q_BUTCHER]._qlevel));
+				else if (!setlevel && currlevel == Quests[Q_BUTCHER]._qlevel) /* NDS-GUARIDA9 */
+					AddInfoBoxString(std::string_view(GetLanguageCode().substr(0, 2) == "es" ? "la guarida del Carnicero" : "the Butcher's Lair")); /* NDS-GUARIDA9B */
 				else
 					AddInfoBoxString(!setlevel ? _("The Unholy Altar") : _("level 15"));
 				cursPosition = missile.position.tile;

@@ -1546,11 +1546,7 @@ void GameLogic()
 	}
 #ifdef __NDS__ /* NDS-ATAJO: L+R 2 s = siguiente nivel (pruebas) */
 	const int ndsWarp = nds_take_warp();
-	if (ndsWarp && !gbIsMultiplayer && !setlevel && currlevel == Quests[Q_BUTCHER]._qlevel && Quests[Q_BUTCHER].IsAvailable()) { /* NDS-PRUEBAGUARIDA: SOLO PRUEBAS */
-		setlvltype = DTYPE_CATHEDRAL;
-		StartNewLvl(*MyPlayer, interface_mode::WM_DIABSETLVL, SL_BUTCHERLAIR);
-		return;
-	}
+	/* NDS-GUARIDA9: quitado el atajo de prueba a la guarida (NDS-PRUEBAGUARIDA) */
 	if (ndsWarp && !gbIsMultiplayer && !setlevel && currlevel < 16) {
 		StartNewLvl(*MyPlayer, interface_mode::WM_DIABNEXTLVL, currlevel + 1);
 		return;
