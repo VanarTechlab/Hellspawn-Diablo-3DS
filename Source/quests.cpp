@@ -148,7 +148,7 @@ void CheckQuests()
 
 	{ /* NDS-GUARIDA9: portal rojo a la guarida del Carnicero */
 		Quest &butcherQuest = Quests[Q_BUTCHER];
-		if (!setlevel && currlevel == butcherQuest._qlevel && butcherQuest._qvar2 == 1 && butcherQuest._qactive != QUEST_DONE
+		if (!setlevel && currlevel == butcherQuest._qlevel && butcherQuest._qvar2 >= 1 && butcherQuest._qactive != QUEST_DONE /* NDS-GUARIDA10 */
 		    && butcherQuest.position != Point { 0, 0 }) {
 			bool shown = false;
 			for (auto &m : Missiles) {

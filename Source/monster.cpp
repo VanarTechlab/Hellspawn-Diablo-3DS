@@ -4373,6 +4373,10 @@ void ProcessMonsters()
 		const bool isMonsterVisible = IsTileVisible(monster.position.tile);
 		if (isMonsterVisible && monster.activeForTicks == 0) {
 			if (monster.type().type == MT_CLEAVER) {
+				if (setlevel && setlvlnum == SL_BUTCHERLAIR && !gbIsMultiplayer && Quests[Q_BUTCHER]._qvar2 == 1) { /* NDS-GUARIDA10: escena oculta, una vez */
+					Quests[Q_BUTCHER]._qvar2 = 2;
+					PlayInGameMovie("gendata\\carnicero.smk");
+				}
 				PlaySFX(SfxID::ButcherGreeting);
 			}
 			if (monster.type().type == MT_NAKRUL) {
