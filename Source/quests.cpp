@@ -297,6 +297,8 @@ int GetMapReturnLevel()
 		return Quests[Q_PWATER]._qlevel;
 	case SL_VILEBETRAYER:
 		return Quests[Q_BETRAYER]._qlevel;
+	case SL_BUTCHERLAIR: /* NDS-GUARIDA */
+		return Quests[Q_BUTCHER]._qlevel;
 	default:
 		return 0;
 	}
@@ -318,6 +320,8 @@ Point GetMapReturnPosition()
 		return Quests[Q_PWATER].position + Direction::SouthWest;
 	case SL_VILEBETRAYER:
 		return Quests[Q_BETRAYER].position + Direction::South;
+	case SL_BUTCHERLAIR: /* NDS-GUARIDA: vuelta a la sala del Carnicero */
+		return Quests[Q_BUTCHER].position;
 	default:
 		return GetTowner(TOWN_DRUNK)->position + Direction::SouthEast;
 	}

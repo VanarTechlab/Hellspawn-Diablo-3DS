@@ -19,6 +19,7 @@ void DrawButcher()
 {
 	const Point position = SetPiece.position.megaToWorld() + Displacement { 3, 3 };
 	DRLG_RectTrans({ position, { 7, 7 } });
+	Quests[Q_BUTCHER].position = SetPiece.position.megaToWorld() + Displacement { 6, 6 }; /* NDS-GUARIDA: centro de su sala */
 }
 
 void DrawSkelKing(quest_id q, Point position)

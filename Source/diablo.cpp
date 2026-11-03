@@ -1545,7 +1545,13 @@ void GameLogic()
 		return;
 	}
 #ifdef __NDS__ /* NDS-ATAJO: L+R 2 s = siguiente nivel (pruebas) */
-	if (nds_take_warp() && !gbIsMultiplayer && !setlevel && currlevel < 16) {
+	const int ndsWarp = nds_take_warp();
+	if (ndsWarp && !gbIsMultiplayer && !setlevel && currlevel == Quests[Q_BUTCHER]._qlevel && Quests[Q_BUTCHER].IsAvailable()) { /* NDS-PRUEBAGUARIDA: SOLO PRUEBAS */
+		setlvltype = DTYPE_CATHEDRAL;
+		StartNewLvl(*MyPlayer, interface_mode::WM_DIABSETLVL, SL_BUTCHERLAIR);
+		return;
+	}
+	if (ndsWarp && !gbIsMultiplayer && !setlevel && currlevel < 16) {
 		StartNewLvl(*MyPlayer, interface_mode::WM_DIABNEXTLVL, currlevel + 1);
 		return;
 	}
@@ -3349,6 +3355,8 @@ std::expected<void, std::string> LoadGameLevelSetLevel(bool firstflag, lvl_entry
 
 	PlayDungMsgs();
 	InitMissiles();
+	if (setlvlnum == SL_BUTCHERLAIR) /* NDS-GUARIDA: portal rojo de vuelta */
+		AddMissile({ 21, 32 }, { 21, 32 }, Direction::South, MissileID::RedPortal, TARGET_MONSTERS, myPlayer, 0, 0);
 	IncProgress();
 	return {};
 }
