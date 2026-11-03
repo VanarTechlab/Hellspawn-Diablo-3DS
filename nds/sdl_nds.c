@@ -2488,33 +2488,53 @@ static void hud_piece(int px, int dx) /* frasco con su estatua: 104x141 del pane
 static int hud_green_idx = -1, hud_greenhi_idx = -1; /* NDS-XPBAR: verde y verde claro de la experiencia (opcion C) */
 static unsigned hud_green_n;
 static Uint8 hud_green_hi;
-static Uint8 hud_green(void)
+static Uint8 hud_green(int avoid) /* NDS-HUDFIX: colores prestados mas seguros */
 {
-    if (hud_green_idx < 0 || (++hud_green_n & 31) == 0) {
+    static unsigned char seen[256]; /* colores que han salido alguna vez en el HUD: no se tocan */
+    static int real; /* 1 = no queda color libre: se usa un verde real de la paleta, sin cambiarla */
+    if (hud_green_idx < 0 || (++hud_green_n & 7) == 0) {
         static unsigned short cnt[256];
+        const int olda = hud_green_idx, oldb = hud_greenhi_idx, oldreal = real;
         int i, a = -1, b = -1;
         memset(cnt, 0, sizeof cnt);
         for (i = 0; i < LCD_W * 188; i++)
             cnt[top_buf[i]]++;
-        if (hud_green_idx > 0 && cnt[hud_green_idx] == 0)
-            a = hud_green_idx; /* si siguen libres, se mantienen */
-        if (hud_greenhi_idx > 0 && cnt[hud_greenhi_idx] == 0 && hud_greenhi_idx != a)
-            b = hud_greenhi_idx;
+        for (i = 0; i < 256; i++)
+            if (cnt[i])
+                seen[i] = 1;
+        seen[0] = 1;
+        if (avoid > 0 && avoid < 256)
+            seen[avoid] = 1;
+        if (!oldreal && olda > 0 && !seen[olda])
+            a = olda; /* si siguen libres, se mantienen */
+        if (!oldreal && oldb > 0 && !seen[oldb] && oldb != a)
+            b = oldb;
         for (i = 255; i > 0 && (a < 0 || b < 0); i--) {
-            if (cnt[i] != 0 || i == a || i == b)
+            if (seen[i] || i == a || i == b)
                 continue;
             if (a < 0) a = i; else b = i;
         }
-        if (a < 0)
-            a = hud_green_idx >= 0 ? hud_green_idx : itx_nearest(6, 26, 10);
-        if (b < 0)
+        real = 0;
+        if (a < 0) { /* no queda ninguno libre */
+            a = itx_nearest(6, 26, 10);
+            b = itx_nearest(13, 31, 17);
+            real = 1;
+        } else if (b < 0)
             b = a;
+        if (!oldreal) { /* devolver su color original a los que se sueltan */
+            if (olda > 0 && olda != a && olda != b)
+                BG_PALETTE_SUB[olda] = BG_PALETTE[olda];
+            if (oldb > 0 && oldb != a && oldb != b)
+                BG_PALETTE_SUB[oldb] = BG_PALETTE[oldb];
+        }
         hud_green_idx = a;
         hud_greenhi_idx = b;
     }
-    BG_PALETTE_SUB[hud_green_idx] = RGB15(6, 26, 10);
-    if (hud_greenhi_idx != hud_green_idx)
-        BG_PALETTE_SUB[hud_greenhi_idx] = RGB15(13, 31, 17);
+    if (!real) {
+        BG_PALETTE_SUB[hud_green_idx] = RGB15(6, 26, 10);
+        if (hud_greenhi_idx != hud_green_idx)
+            BG_PALETTE_SUB[hud_greenhi_idx] = RGB15(13, 31, 17);
+    }
     hud_green_hi = (Uint8)hud_greenhi_idx;
     return (Uint8)hud_green_idx;
 }
@@ -2770,7 +2790,7 @@ static void nds_hud_compose(void)
             dark = x;
     }
     {
-        const Uint8 g = hud_green();
+        const Uint8 g = hud_green(dark); /* NDS-HUDFIX */
         const int fill = LCD_W * hud_xp / 1000;
         for (y = 188; y < 192; y++) {
             Uint8 *d = top_buf + y * LCD_W;
@@ -3366,8 +3386,10 @@ int SDL_Flip(SDL_Surface *s)
         if (ui_mode == 0) {
             vback = back;
             nds_ui_compose(); /* el mundo va directo a la VRAM, 4 pixeles por escritura */
-            fb_draw(back); /* NDS-AMISTAD */
-            lb_draw(back); /* NDS-NIVEL */
+            if (!nds_get_swap()) { /* NDS-HUDFIX: con "Juego arriba" van en la tactil (HUD) */
+                fb_draw(back); /* NDS-AMISTAD */
+                lb_draw(back); /* NDS-NIVEL */
+            }
             vback = NULL;
         } else {
             DC_FlushRange(video_pixels, SCREEN_BYTES);
@@ -3394,6 +3416,10 @@ int SDL_Flip(SDL_Surface *s)
         if (hud_n++ & 1)
             goto hud_skip;
         nds_hud_compose();
+        if (ui_mode == 0 && nds_get_swap()) { /* NDS-HUDFIX: botones en la tactil */
+            fb_draw(top_buf);
+            lb_draw(top_buf);
+        }
         DC_FlushRange(top_buf, sizeof top_buf);
         dmaCopyWordsAsynch(2, top_buf, video_vram_sub, sizeof top_buf); /* NDS-RAPIDO5: en segundo plano */
     hud_skip:;

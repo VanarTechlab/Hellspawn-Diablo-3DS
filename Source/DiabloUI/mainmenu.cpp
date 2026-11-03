@@ -12,6 +12,7 @@
 #endif
 
 #include "DiabloUI/diabloui.h"
+#include "DiabloUI/selok.h" /* NDS-JUEGO */
 #include "DiabloUI/ui_flags.hpp"
 #include "DiabloUI/ui_item.h"
 #include "engine/assets.hpp"
@@ -66,6 +67,9 @@ constexpr int NdsOptionsValue = 107; /* NDS-OPCIONES */
 constexpr int NdsScreensValue = 108;
 constexpr int NdsScrBottom = 150;
 constexpr int NdsScrTop = 151;
+constexpr int NdsGameValue = 109; /* NDS-JUEGO */
+constexpr int NdsGameDiablo = 160;
+constexpr int NdsGameHellfire = 161;
 extern "C" int nds_get_swap(void);
 extern "C" void nds_set_swap(int on);
 void NdsSetLanguage(const char *code)
@@ -490,6 +494,12 @@ void MainmenuLoad(const char *name)
 	} else if (NdsMenuMode == 5) { /* NDS-OPCIONES: Opciones */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Pantallas", "Screens")), NdsScreensValue));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Idioma", "Language")), NdsLangValue));
+		if (HaveHellfire()) /* NDS-JUEGO: solo con Hellfire en la SD */
+			vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Juego", "Game")), NdsGameValue));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
+	} else if (NdsMenuMode == 7) { /* NDS-JUEGO: Diablo / Hellfire */
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(gbIsHellfire ? "Diablo" : "> Diablo"), NdsGameDiablo));
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(gbIsHellfire ? "> Hellfire" : "Hellfire"), NdsGameHellfire));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
 	} else if (NdsMenuMode == 6) { /* NDS-OPCIONES: Pantallas */
 		const bool arriba = nds_get_swap() != 0;
@@ -647,6 +657,21 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 			} else if (r == NdsScrBottom || r == NdsScrTop) {
 				nds_set_swap(r == NdsScrTop ? 1 : 0);
 				MainMenuResult = MAINMENU_NONE;
+			} else if (r == NdsGameValue) { /* NDS-JUEGO */
+				NdsMenuMode = 7;
+				MainMenuResult = MAINMENU_NONE;
+			} else if (r == NdsGameDiablo || r == NdsGameHellfire) { /* NDS-JUEGO */
+				const bool hf = r == NdsGameHellfire;
+				if (hf == gbIsHellfire) {
+					MainMenuResult = MAINMENU_NONE; /* ya es el juego actual */
+				} else {
+					GetOptions().GameMode.gameMode.SetValue(StartUpGameMode::Diablo); /* sin selector al arrancar: decide [Mods] hf */
+					GetOptions().Mods.SetHellfireEnabled(hf);
+					SaveOptions();
+					UiSelOkDialog(hf ? "Hellfire" : "Diablo", NDS_T("Vuelve a abrir Hellspawn para jugar con el juego elegido.", "Open Hellspawn again to play the chosen game."), false);
+					NdsMenuMode = 0;
+					MainMenuResult = MAINMENU_EXIT_DIABLO; /* sale igual que "Salir" */
+				}
 			} else if (r == NdsLangValue) { /* NDS-IDIOMA */
 				NdsMenuMode = 4;
 				MainMenuResult = MAINMENU_NONE;
@@ -656,7 +681,7 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 			} else if (r == NdsBackValue) {
 				if (NdsMenuMode == 3)
 					music_start(TMUSIC_INTRO); /* al salir del Soundtrack vuelve la musica del menu */
-				NdsMenuMode = (NdsMenuMode == 4 || NdsMenuMode == 6) ? 5 : (NdsMenuMode == 2 || NdsMenuMode == 3) ? 1 : 0; /* NDS-OPCIONES: Idioma y Pantallas vuelven a Opciones */
+				NdsMenuMode = (NdsMenuMode == 4 || NdsMenuMode == 6 || NdsMenuMode == 7) ? 5 : (NdsMenuMode == 2 || NdsMenuMode == 3) ? 1 : 0; /* NDS-OPCIONES: Idioma y Pantallas vuelven a Opciones */
 				MainMenuResult = MAINMENU_NONE;
 			} else if (r == NdsLockedValue) {
 				MainMenuResult = MAINMENU_NONE;
