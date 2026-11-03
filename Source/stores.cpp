@@ -43,6 +43,8 @@
 
 namespace devilution {
 
+int NdsSucubosEstado(); /* NDS-SUCUBOS (quests.cpp) */
+
 TalkID ActiveStore;
 
 int CurrentItemIndex;
@@ -1202,6 +1204,28 @@ void StartStorytellerIdentifyShow(Item &item)
 	AddSText(0, 18, _("Done"), UiFlags::ColorWhite | UiFlags::AlignCenter, true);
 }
 
+const char *NdsSucTalkId(bool consumir) /* NDS-SUCUBOS3: frase de "Luces del Bosque" de este NPC (o nada) */
+{
+	if (gbIsMultiplayer || MyPlayer == nullptr || MyPlayer->getCharacterLevel() < 15 || NdsSucubosEstado() >= 2)
+		return nullptr;
+	static bool gillianYa = false;
+	switch (TownerId) {
+	case TOWN_BMAID: {
+		const char *id = gillianYa ? "NDS_SUCC_GILLIAN22" : "NDS_SUCC_GILLIAN21";
+		if (consumir)
+			gillianYa = true;
+		return id;
+	}
+	case TOWN_HEALER: return "NDS_SUCC_PEPIN4";
+	case TOWN_STORY: return "NDS_SUCC_CAIN6";
+	case TOWN_WITCH: return "NDS_SUCC_ADRIA6";
+	case TOWN_TAVERN: return "NDS_SUCC_OGDEN4";
+	case TOWN_SMITH: return "NDS_SUCC_GRISWOLD6";
+	case TOWN_PEGBOY: return "NDS_SUCC_WIRT6";
+	default: return nullptr;
+	}
+}
+
 void StartTalk()
 {
 	int la;
@@ -1224,6 +1248,8 @@ void StartTalk()
 		if (quest._qactive == QUEST_ACTIVE && GetTownerQuestDialog(TownerId, quest._qidx) != TEXT_NONE && quest._qlog)
 			sn++;
 	}
+	if (NdsSucTalkId(false) != nullptr) /* NDS-SUCUBOS3 */
+		sn++;
 
 	if (sn > 6) {
 		sn = 14 - (sn / 2);
@@ -1240,6 +1266,10 @@ void StartTalk()
 			AddSText(0, sn, _(QuestsData[quest._qidx]._qlstr), UiFlags::ColorWhite | UiFlags::AlignCenter, true);
 			sn += la;
 		}
+	}
+	if (NdsSucTalkId(false) != nullptr) { /* NDS-SUCUBOS3: mision de los Sucubos */
+		AddSText(0, sn, _("Forest Lights"), UiFlags::ColorWhite | UiFlags::AlignCenter, true);
+		sn += la;
 	}
 	AddSText(0, sn2, _("Gossip"), UiFlags::ColorBlue | UiFlags::AlignCenter, true);
 	AddOptionsBackButton();
@@ -1969,6 +1999,40 @@ void StorytellerIdentifyEnter()
 	StartStore(TalkID::Confirm);
 }
 
+void NdsSucubosGossip(_speech_id &s) /* NDS-SUCUBOS: dialogos recuperados de la mision */
+{
+	if (gbIsMultiplayer || MyPlayer == nullptr || MyPlayer->getCharacterLevel() < 15)
+		return;
+	const int e = NdsSucubosEstado();
+	static uint8_t cnt[64];
+	static bool graciasDichas = false;
+	uint8_t &c = cnt[static_cast<int>(TownerId) & 63];
+	const char *id = nullptr;
+	if (TownerId == TOWN_BMAID) {
+		if (e >= 2) {
+			if (!graciasDichas) {
+				graciasDichas = true;
+				id = "NDS_SUCC_GILLIAN23";
+			}
+		}
+	} else if (false && c == 0) { /* NDS-SUCUBOS3: ahora van en "Luces del Bosque" */
+		switch (TownerId) {
+		case TOWN_HEALER: id = "NDS_SUCC_PEPIN4"; break;
+		case TOWN_STORY: id = "NDS_SUCC_CAIN6"; break;
+		case TOWN_WITCH: id = "NDS_SUCC_ADRIA6"; break;
+		case TOWN_TAVERN: id = "NDS_SUCC_OGDEN4"; break;
+		case TOWN_SMITH: id = "NDS_SUCC_GRISWOLD6"; break;
+		case TOWN_PEGBOY: id = "NDS_SUCC_WIRT6"; break;
+		default: break;
+		}
+	}
+	if (id != nullptr) {
+		const auto r = ParseSpeechId(id);
+		if (r.has_value() && *r != TEXT_NONE)
+			s = *r;
+	}
+}
+
 void TalkEnter()
 {
 	if (CurrentTextLine == BackButtonLine()) {
@@ -1982,6 +2046,8 @@ void TalkEnter()
 		if (quest._qactive == QUEST_ACTIVE && GetTownerQuestDialog(TownerId, quest._qidx) != TEXT_NONE && quest._qlog)
 			sn++;
 	}
+	if (NdsSucTalkId(false) != nullptr) /* NDS-SUCUBOS3 */
+		sn++;
 	int la = 2;
 	if (sn > 6) {
 		sn = 14 - (sn / 2);
@@ -1993,7 +2059,9 @@ void TalkEnter()
 	if (CurrentTextLine == sn - 2) {
 		Towner *target = GetTowner(TownerId);
 		assert(target != nullptr);
-		InitQTextMsg(target->gossip);
+		_speech_id ndsG = target->gossip; /* NDS-SUCUBOS */
+		NdsSucubosGossip(ndsG);
+		InitQTextMsg(ndsG);
 		return;
 	}
 
@@ -2029,6 +2097,14 @@ void TalkEnter()
 				}
 			}
 			sn += la;
+		}
+	}
+	if (CurrentTextLine == sn) { /* NDS-SUCUBOS3: eligio "Luces del Bosque" */
+		const char *ndsId = NdsSucTalkId(true);
+		if (ndsId != nullptr) {
+			const auto ndsR = ParseSpeechId(ndsId);
+			if (ndsR.has_value() && *ndsR != TEXT_NONE)
+				InitQTextMsg(*ndsR);
 		}
 	}
 }

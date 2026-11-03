@@ -2110,7 +2110,7 @@ void AddTownPortal(Missile &missile, AddMissileParameter &parameter)
 	{ /* NDS-GUARIDA9: Portal dentro de la sala del Carnicero (nivel 2) = portal rojo a su guarida */
 		Quest &butcherQuest = Quests[Q_BUTCHER];
 		const Player *caster = missile.sourcePlayer();
-		if (!missile._miDelFlag && caster != nullptr && !setlevel && leveltype != DTYPE_TOWN && currlevel == butcherQuest._qlevel
+		if (!gbIsMultiplayer /* NDS-GUARIDA13: solo un jugador */ && !missile._miDelFlag && caster != nullptr && !setlevel && leveltype != DTYPE_TOWN && currlevel == butcherQuest._qlevel
 		    && butcherQuest.IsAvailable() && butcherQuest._qactive != QUEST_DONE && butcherQuest._qvar2 == 0 /* NDS-GUARIDA10 */
 		    && SetPiece.size.width > 0) {
 			const Point room = SetPiece.position.megaToWorld();

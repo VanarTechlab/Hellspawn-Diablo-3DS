@@ -222,6 +222,7 @@ set(devilutionx_assets
   ui_art/hellspawn.pal
   ui_art/hellspawn_arriba.bin
   nds/guarida.dun
+  nds/bosque.dun
   ui_art/creditsw.clx
   ui_art/dvl_but_sml.clx
   ui_art/dvl_lrpopup.clx
