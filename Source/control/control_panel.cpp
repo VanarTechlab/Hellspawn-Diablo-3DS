@@ -861,7 +861,7 @@ void DrawDeathText(const Surface &out)
 			.flags = UiFlags::FontSize24 | UiFlags::ColorGold | UiFlags::AlignCenter,
 			.spacing = 2
 		};
-		const int ndsY = linePosition.y - 12;
+		const int ndsY = linePosition.y; /* NDS-MUERTE2: 12 px mas abajo */
 		const std::string ndsText = WordWrapString(text, static_cast<unsigned>(out.w() - 16), GameFont24, 2);
 		DrawString(out, ndsText, Rectangle { Point { 8, ndsY }, Size { out.w() - 16, out.h() - ndsY } }, ndsOpts);
 	}

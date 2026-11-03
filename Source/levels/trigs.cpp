@@ -80,8 +80,6 @@ bool IsWarpOpen(dungeon_type type)
 
 	if (gbIsMultiplayer && type != DTYPE_NEST) // Opening the nest is part of in town quest
 		return true;
-	if (gbIsHellfire && type == DTYPE_NEST) /* NDS-PRUEBAHF: Colmena siempre abierta (solo pruebas) */
-		return true;
 
 	const Player &myPlayer = *MyPlayer;
 
@@ -892,7 +890,7 @@ void CheckTriggers()
 			StartNewLvl(myPlayer, trigs[i]._tmsg, GetMapReturnLevel());
 			break;
 		case WM_DIABTOWNWARP:
-			if (gbIsMultiplayer && false) { /* NDS-PRUEBAHF: sin nivel minimo (solo pruebas) */
+			if (gbIsMultiplayer) {
 				bool abort = false;
 				diablo_message abortflag;
 
