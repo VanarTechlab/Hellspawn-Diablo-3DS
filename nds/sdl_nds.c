@@ -3932,8 +3932,11 @@ int nds_fat_ok;
 
 /* NDS-REGISTRO: apunta lineas en saves/registro.txt (diagnostico) */
 #include <errno.h>
+#define NDS_REGISTRO 0 /* 1 = escribir saves/registro.txt (diagnostico) */
 void nds_log(const char *fmt, ...)
 {
+    if (!NDS_REGISTRO)
+        return;
     const int e = errno;
     FILE *f = fopen(nds_r("/devilutionx/saves/registro.txt"), "a");
     if (f) {
@@ -3956,6 +3959,8 @@ int nds_probe_open(const char *path) /* NDS-REGISTRO: 1 si el archivo se puede a
 }
 void nds_log_open_fail(const char *path, const char *err) /* NDS-REGISTRO */
 {
+    if (!NDS_REGISTRO)
+        return;
     const int e = errno;
     const int pal = nds_probe_open(nds_d("/devilutionx/assets/ui_art/diablo.pal"));
     nds_log("ABRIR FALLA '%s' : %s (errno %d) | datos=%s | prueba diablo.pal=%s", path, err, e,
