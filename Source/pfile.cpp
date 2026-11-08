@@ -704,6 +704,8 @@ bool pfile_ui_set_hero_infos(bool (*uiAddHeroInfo)(_uiheroinfo *))
 				_uiheroinfo uihero;
 				uihero.saveNumber = i;
 				CopyUtf8(hero_names[i], std::string_view(pkplr.pName, PlayerNameLength), sizeof(hero_names[i]));
+				if (!gbIsHellfire && pkplr.pClass >= static_cast<uint8_t>(HeroClass::Monk)) /* NDS-HEROESHF: heroe de Hellfire */
+					continue;
 				const bool hasSaveGame = ArchiveContainsGame(*archive);
 				if (hasSaveGame)
 					pkplr.bIsHellfire = gbIsHellfireSaveGame ? 1 : 0;

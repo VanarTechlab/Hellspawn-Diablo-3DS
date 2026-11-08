@@ -278,23 +278,47 @@ void nds_trace_open(const char *path)
     thrd_yield();
 }
 
-void abort(void)
+static volatile unsigned nds_fallo_n, nds_fallo_cnt, nds_fallo_max; /* NDS-SINMEM: reservas de memoria fallidas */
+static void exc_puts(PrintConsole *pc, int x, int y, const char *t);
+
+void abort(void) /* NDS-SINMEM: se ve siempre (pantalla roja), tambien en la version normal */
 {
     unsigned long sp;
     unsigned long *q;
-    int i, shown = 0;
+    int i, shown = 0, row = 7;
+    char t[48], line[40];
+    PrintConsole *pc;
+    const unsigned long lr = (unsigned long)__builtin_return_address(0);
+    struct mallinfo mi = mallinfo();
     __asm__ volatile("mov %0, sp" : "=r"(sp));
     no_page++;
-    printf("\x1b[2J\x1b[0;0HABORT! lr=%08lX hilo=%d\n", (unsigned long)__builtin_return_address(0), (int)thrd_current());
+    pc = consoleDemoInit();
+    BG_PALETTE_SUB[0] = RGB15(14, 0, 0);
+    exc_puts(pc, 0, 0, nds_fallo_cnt ? "SIN MEMORIA (abort)" : "ABORT (sin fallo de memoria)");
+    snprintf(t, sizeof t, "ultimo pedido %u KB", (unsigned)(nds_fallo_n / 1024u));
+    exc_puts(pc, 0, 2, t);
+    snprintf(t, sizeof t, "mayor pedido %u KB fallos %u", (unsigned)(nds_fallo_max / 1024u), (unsigned)nds_fallo_cnt);
+    exc_puts(pc, 0, 3, t);
+    snprintf(t, sizeof t, "usado %u KB libre %u KB", (unsigned)(mi.uordblks / 1024u), (unsigned)(mi.fordblks / 1024u));
+    exc_puts(pc, 0, 4, t);
+    snprintf(t, sizeof t, "lr %08lX hilo %d", lr, (int)thrd_current());
+    exc_puts(pc, 0, 5, t);
     q = (unsigned long *)sp;
+    line[0] = 0;
     for (i = 0; i < 1024 && shown < 12; i++) {
         unsigned long v = q[i];
         if (v >= 0x02000000UL && v < 0x02200000UL && (v & 1UL)) {
-            printf("%08lX ", v);
-            if ((++shown % 3) == 0)
-                printf("\n");
+            size_t L = strlen(line);
+            snprintf(line + L, sizeof line - L, "%08lX ", v);
+            if ((++shown % 3) == 0) {
+                exc_puts(pc, 0, row++, line);
+                line[0] = 0;
+            }
         }
     }
+    if (line[0])
+        exc_puts(pc, 0, row, line);
+    exc_puts(pc, 0, 13, "Haz una foto de esta pantalla");
     for (;;)
         swiWaitForVBlank();
 }
@@ -2906,11 +2930,15 @@ static void mn_forget(const void *p)
 
 void *__wrap_malloc(size_t n)
 {
+    void *p;
 #if NDS_MEMTRACK
-    return mt_new(n, (unsigned)__builtin_return_address(0));
+    p = mt_new(n, (unsigned)__builtin_return_address(0));
 #else
-    return __real_malloc(n);
+    p = __real_malloc(n);
 #endif
+    if (!p)
+        if (n) { nds_fallo_n = (unsigned)n; nds_fallo_cnt++; if (n > nds_fallo_max) nds_fallo_max = (unsigned)n; } /* NDS-SINMEM */
+    return p;
 }
 void __wrap_free(void *p)
 {
@@ -2932,8 +2960,12 @@ void *__wrap_realloc(void *p, size_t n)
     unsigned ra = (unsigned)__builtin_return_address(0);
     u32 *h, *nh;
     unsigned ora, on;
-    if (!NDS_MEMTRACK)
-        return __real_realloc(p, n);
+    if (!NDS_MEMTRACK) {
+        void *r = __real_realloc(p, n);
+        if (!r)
+            if (n) { nds_fallo_n = (unsigned)n; nds_fallo_cnt++; if (n > nds_fallo_max) nds_fallo_max = (unsigned)n; } /* NDS-SINMEM */
+        return r;
+    }
     if (!p)
         return mt_new(n, ra);
     h = mt_hdr(p);
@@ -2967,6 +2999,8 @@ void *__wrap_calloc(size_t a, size_t b)
     p = NDS_MEMTRACK ? mt_new(n, (unsigned)__builtin_return_address(0)) : __real_malloc(n);
     if (p)
         memset(p, 0, n);
+    else
+        if (n) { nds_fallo_n = (unsigned)n; nds_fallo_cnt++; if (n > nds_fallo_max) nds_fallo_max = (unsigned)n; } /* NDS-SINMEM */
     return p;
 }
 void nds_mem_retag(void *p, unsigned ra) /* llamado desde operator new */
@@ -3182,8 +3216,8 @@ const char *nds_prof_line(int n)
 /* NDS-ARRIBA: imagen propia en la pantalla de arriba durante los menus */
 static int nds_top_img_on, nds_top_img_tried;
 /* NDS-V12: texto de version sobre la imagen de arriba (solo menu principal) */
-#define NDS_VER_TXT "V1.5.4"
-#define VER_W (4 * 8 + 2)
+#define NDS_VER_TXT "V1.5.2"
+#define VER_W ((int)(sizeof(NDS_VER_TXT) - 1) * 8 + 2) /* NDS-VER2: a la medida del texto */
 #define VER_H 10
 #define VER_X (LCD_W - VER_W - 3)
 #define VER_Y (LCD_H - VER_H - 3)
