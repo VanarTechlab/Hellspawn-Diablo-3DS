@@ -105,6 +105,15 @@ static const char *nds_r(const char *rest)
     snprintf(b, 128, "%s%s", nds_root, rest);
     return b;
 }
+char nds_data_root[8] = ""; /* NDS-NITRO: "nitro:" si los datos van dentro del .nds */
+static const char *nds_d(const char *rest) /* NDS-NITRO: ruta de DATOS (solo lectura) */
+{
+    static char buf[8][128];
+    static int i;
+    char *b = buf[i++ & 7];
+    snprintf(b, 128, "%s%s", nds_data_root[0] ? nds_data_root : nds_root, rest);
+    return b;
+}
 
 /* NDS-OPCIONES: pantallas intercambiadas (1 = juego arriba). Se guarda en saves/pantallas.txt */
 static int nds_swap = -1;
@@ -3271,7 +3280,7 @@ static void nds_top_img_show(void)
     if (nds_top_img_tried)
         return;
     nds_top_img_tried = 1;
-    FILE *f = fopen(nds_r("/devilutionx/assets/ui_art/hellspawn_arriba.bin"), "rb");
+    FILE *f = fopen(nds_d("/devilutionx/assets/ui_art/hellspawn_arriba.bin"), "rb") /* NDS-NITRO */;
     if (!f)
         return;
     u16 *buf = (u16 *)malloc(LCD_W * LCD_H * 2);
@@ -3763,6 +3772,27 @@ static void input_poll(void)
 
     scanKeys();
     held = keysHeld();
+    { /* NDS-TAPA: tapa cerrada -> frase del personaje y reposo */
+        static int lid_was;
+        const int lid_now = (held & KEY_LID) != 0;
+        if (lid_now && !lid_was) {
+            extern int nds_lid_sound(void);
+            if (nds_lid_sound()) {
+                for (int w = 0; w < 100; w++) { /* ~1,7 s para que se oiga la frase */
+                    swiWaitForVBlank();
+                    nds_audio_update();
+                }
+            }
+            enableSleep();
+            systemSleep();
+            disableSleep();
+            for (int w = 0; w < 10; w++)
+                swiWaitForVBlank();
+            scanKeys();
+            held = keysHeld();
+        }
+        lid_was = (held & KEY_LID) != 0;
+    }
     changed = held ^ prev_held;
     if (!(held & KEY_TOUCH)) /* NDS-AMISTAD */
         fb_touch = 0;
@@ -3882,6 +3912,7 @@ SDLMod SDL_GetModState(void) { return nds_mod; } /* NDS-CINTURON */
 
 /* ---------------- etapa 3: SD y rutas ---------------- */
 #include <fat.h>
+#include <filesystem.h> /* NDS-NITRO: nitroFSInit */
 #include <dswifi9.h> /* NDS-MP1 */
 #include <dirent.h>
 #include <sys/stat.h>
@@ -3898,6 +3929,65 @@ static char arg7[] = "--verbose";
 static char *nds_args[] = { arg0, arg1, arg2, arg3, arg4, arg5, arg6, NULL };
 int nds_fat_ok;
 
+
+/* NDS-REGISTRO: apunta lineas en saves/registro.txt (diagnostico) */
+#include <errno.h>
+void nds_log(const char *fmt, ...)
+{
+    const int e = errno;
+    FILE *f = fopen(nds_r("/devilutionx/saves/registro.txt"), "a");
+    if (f) {
+        va_list ap;
+        fprintf(f, "[%lu] ", (unsigned long)SDL_GetTicks());
+        va_start(ap, fmt);
+        vfprintf(f, fmt, ap);
+        va_end(ap);
+        fputc('\n', f);
+        fclose(f);
+    }
+    errno = e;
+}
+int nds_probe_open(const char *path) /* NDS-REGISTRO: 1 si el archivo se puede abrir de verdad */
+{
+    FILE *f = fopen(path, "rb");
+    if (f)
+        fclose(f);
+    return f != NULL;
+}
+void nds_log_open_fail(const char *path, const char *err) /* NDS-REGISTRO */
+{
+    const int e = errno;
+    const int pal = nds_probe_open(nds_d("/devilutionx/assets/ui_art/diablo.pal"));
+    nds_log("ABRIR FALLA '%s' : %s (errno %d) | datos=%s | prueba diablo.pal=%s", path, err, e,
+        nds_data_root[0] ? nds_data_root : nds_root, pal ? "ok" : "FALLA");
+}
+
+/* NDS-NITRO2: monta el .nds que tenga nitro:/devilutionx (primero el que dio el cargador, luego en la SD) */
+static int nds_nitro_ok(void)
+{
+    DIR *dn = opendir("nitro:/devilutionx");
+    if (dn)
+        closedir(dn);
+    return dn != NULL;
+}
+static int nds_nitro_init(void)
+{
+    static const char *const cand[] = { "/hellspawn_completo.nds", "/devilutionx/hellspawn_completo.nds", "/hellspawn.nds" };
+    if (nitroFSInit(NULL) && nds_nitro_ok())
+        return 1;
+    for (unsigned i = 0; i < sizeof cand / sizeof cand[0]; i++) {
+        const char *p = nds_r(cand[i]);
+        FILE *f = fopen(p, "rb");
+        if (!f)
+            continue;
+        fclose(f);
+        if (nitroFSInit(p) && nds_nitro_ok()) {
+            printf("datos: %s\n", p);
+            return 1;
+        }
+    }
+    return 0;
+}
 
 /* NDS-ERROR: comprobacion de la SD al arrancar; si falta algo se avisa y se detiene el juego */
 static int pf_has_dir(const char *path)
@@ -3947,11 +4037,11 @@ static void nds_stop_screen(void)
 
 static void nds_preflight(void)
 {
-    const int assets = pf_has_dir(nds_r("/devilutionx/assets"));
-    const int pal = pf_has_file(nds_r("/devilutionx/assets/ui_art/diablo.pal"));
-    const int full = pf_has_dir(nds_r("/devilutionx/diabdat"));
-    const int demo = pf_has_dir(nds_r("/devilutionx/spawn"));
-    const char *data = full ? nds_r("/devilutionx/diabdat") : nds_r("/devilutionx/spawn");
+    const int assets = pf_has_dir(nds_d("/devilutionx/assets")); /* NDS-NITRO: datos con nds_d */
+    const int pal = pf_has_file(nds_d("/devilutionx/assets/ui_art/diablo.pal"));
+    const int full = pf_has_dir(nds_d("/devilutionx/diabdat"));
+    const int demo = pf_has_dir(nds_d("/devilutionx/spawn"));
+    const char *data = full ? nds_d("/devilutionx/diabdat") : nds_d("/devilutionx/spawn");
     char p1[64], p2[64];
     snprintf(p1, sizeof p1, "%s/levels", data);
     snprintf(p2, sizeof p2, "%s/ui_art", data);
@@ -4052,6 +4142,7 @@ void nds_platform_init(int *argc, char ***argv)
                 swiWaitForVBlank();
         }
         hb_start();
+        disableSleep(); /* NDS-TAPA: el reposo al cerrar la tapa lo hace input_poll */
         irqSet(IRQ_VBLANK, nds_vblank);
         irqEnable(IRQ_VBLANK);
         nds_fat_ok = fatInitDefault();
@@ -4066,11 +4157,20 @@ void nds_platform_init(int *argc, char ***argv)
             snprintf(arg6, sizeof arg6, "%s/devilutionx/saves/", nds_root);
             printf("datos en: %s/devilutionx\n", nds_root);
         }
+        if (nds_fat_ok) { /* NDS-NITRO: datos dentro del .nds; partidas en la SD (NDS-NITRO2: busca el .nds) */
+            if (nds_nitro_init()) {
+                strcpy(nds_data_root, "nitro:");
+                snprintf(arg2, sizeof arg2, "nitro:/devilutionx/");
+                printf("datos: dentro del .nds\n");
+            }
+            nds_log("ARRANQUE datos=%s raiz=%s", nds_data_root[0] ? "dentro del .nds" : "SD", nds_root); /* NDS-REGISTRO */
+        }
         /* NDS-MP20: la wifi se enciende al entrar en "DSi local" (protocol_nds.cpp), no al arrancar */
         if (nds_fat_ok) {
             mkdir(nds_r("/devilutionx"), 0777);
             mkdir(nds_r("/devilutionx/saves"), 0777);
-            chdir(nds_r("/devilutionx/"));
+            if (chdir(nds_d("/devilutionx/")) != 0) /* NDS-NITRO: carpeta de datos */
+                chdir(nds_r("/devilutionx/"));
             {
                 char cwd[96];
                 printf("cwd: %s\n", getcwd(cwd, sizeof(cwd)) ? cwd : "?");
@@ -4410,7 +4510,7 @@ int nds_dsv_begin(const char *name, int loop)
     }
     base[n] = 0;
     nds_cine_mark(base); /* NDS-CINES */
-    snprintf(path, sizeof path, nds_r("/devilutionx/dsv/%s.dsv"), base);
+    snprintf(path, sizeof path, nds_d("/devilutionx/dsv/%s.dsv"), base); /* NDS-NITRO */
     dsv_f = fopen(path, "rb");
     if (!dsv_f)
         return 0;
