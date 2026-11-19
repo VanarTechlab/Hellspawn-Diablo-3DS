@@ -245,6 +245,9 @@ void NdsBosqueSucubos(const Player &me)
 			}
 			if (NdsSpawnAndariel(sitio)) {
 				NdsSucubosGuardar(1);
+#ifdef HELLSPAWN
+				MyPlayer->Say(HeroSpeech::TimeToDie); /* HS-ANDARIEL (Belial 64) */
+#endif
 				NdsAndarielVista = true;
 				NdsAviso(_("Andariel has awakened!"), 80);
 			}
@@ -257,6 +260,9 @@ void NdsBosqueSucubos(const Player &me)
 			NdsAndarielVista = false;
 			MyPlayer->_pStatPts += 5;
 			NdsSucubosGuardar(2);
+#ifdef HELLSPAWN
+			MyPlayer->Say(HeroSpeech::YoullLureNoMoreMenToTheirDeaths, 30); /* HS-ANDARIEL2 (Belial 64) */
+#endif
 			NdsAviso(_("Andariel defeated: +5 stat points"), 160);
 		}
 	}

@@ -35,7 +35,7 @@ std::vector<std::unique_ptr<UiItemBase>> vecTitleScreen;
 
 void TitleLoad()
 {
-#ifdef __NDS__ /* NDS-TITULO: pantalla de titulo propia si existe assets/ui_art/hellspawn.clx */
+#ifdef HELLSPAWN /* NDS-TITULO: pantalla de titulo propia si existe assets/ui_art/hellspawn.clx */
 	LoadBackgroundArt("ui_art\\hellspawn");
 	if (ArtBackground.has_value())
 		return;

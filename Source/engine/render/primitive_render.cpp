@@ -101,7 +101,7 @@ void DrawHorizontalLine(const Surface &out, Point from, int width, std::uint8_t 
 
 void UnsafeDrawHorizontalLine(const Surface &out, Point from, int width, std::uint8_t colorIndex)
 {
-#ifdef __NDS__ /* NDS-FIX-UNSAFE: recortar a la superficie */
+#ifdef HELLSPAWN /* NDS-FIX-UNSAFE: recortar a la superficie */
 	if (from.y < 0 || from.y >= out.h() || from.x >= out.w() || width <= 0 || from.x + width <= 0)
 		return;
 	if (from.x < 0) {
@@ -129,7 +129,7 @@ void DrawVerticalLine(const Surface &out, Point from, int height, std::uint8_t c
 
 void UnsafeDrawVerticalLine(const Surface &out, Point from, int height, std::uint8_t colorIndex)
 {
-#ifdef __NDS__ /* NDS-FIX-UNSAFE: recortar a la superficie */
+#ifdef HELLSPAWN /* NDS-FIX-UNSAFE: recortar a la superficie */
 	if (from.x < 0 || from.x >= out.w() || from.y >= out.h() || height <= 0 || from.y + height <= 0)
 		return;
 	if (from.y < 0) {
@@ -243,7 +243,7 @@ void SetHalfTransparentPixel(const Surface &out, Point position, uint8_t color)
 
 void UnsafeDrawBorder2px(const Surface &out, Rectangle rect, uint8_t color)
 {
-#ifdef __NDS__ /* NDS-FIX-UNSAFE: si el borde se sale, dibujarlo con lineas recortadas */
+#ifdef HELLSPAWN /* NDS-FIX-UNSAFE: si el borde se sale, dibujarlo con lineas recortadas */
 	{
 		const int bx = rect.position.x, by = rect.position.y, bw = rect.size.width, bh = rect.size.height;
 		if (bx < 0 || by < 0 || bx + bw > out.w() || by + bh > out.h()) {

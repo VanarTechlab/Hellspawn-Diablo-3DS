@@ -1,3 +1,4 @@
+#include "hellspawn_prof.h"
 /**
  * @file scrollrt.cpp
  *

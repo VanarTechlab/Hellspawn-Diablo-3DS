@@ -180,7 +180,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # NDS-RAPIDO1: en la DSi el dibujo va mucho mas rapido en modo ARM que en Thumb
-if(CMAKE_CXX_COMPILER MATCHES "arm-none-eabi")
+if(CMAKE_CXX_COMPILER MATCHES "wonderful")
   set_property(SOURCE
     engine/render/dun_render.cpp
     engine/render/clx_render.cpp
@@ -737,7 +737,7 @@ target_link_dependencies(libdevilutionx_pathfinding PUBLIC
 )
 
 # NDS-MP2-FIX: en la DSi no hay mpqfs
-if(SUPPORTS_MPQ OR (NOT NONET AND NOT CMAKE_CXX_COMPILER MATCHES "arm-none-eabi"))
+if(SUPPORTS_MPQ OR (NOT NONET AND NOT CMAKE_CXX_COMPILER MATCHES "wonderful"))
   add_devilutionx_object_library(libdevilutionx_pkware_encrypt
     encrypt.cpp
   )
@@ -1022,7 +1022,7 @@ if(NOT NONET)
       dvlnet/zerotier_lwip.cpp)
   endif()
   # NDS-MP2: conector "DSi local"
-  if(CMAKE_CXX_COMPILER MATCHES "arm-none-eabi")
+  if(CMAKE_CXX_COMPILER MATCHES "wonderful")
     list(APPEND libdevilutionx_SRCS dvlnet/protocol_nds.cpp)
     set_property(SOURCE dvlnet/protocol_nds.cpp APPEND PROPERTY INCLUDE_DIRECTORIES "$ENV{BLOCKSDS}/libs/dswifi/include")
   endif()

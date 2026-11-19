@@ -792,7 +792,7 @@ if(UWP_LIB)
 endif()
 
 # NDS-MEMTRK: envolver malloc/free para el rastreador de memoria (sdl_nds.c)
-if(CMAKE_CXX_COMPILER MATCHES "arm-none-eabi" AND TARGET ${BIN_TARGET})
+if(CMAKE_CXX_COMPILER MATCHES "wonderful" AND TARGET ${BIN_TARGET})
   target_link_options(${BIN_TARGET} PRIVATE "LINKER:--wrap=malloc,--wrap=free,--wrap=realloc,--wrap=calloc")
   # NDS-MP1: libreria de wifi (multijugador local)
   target_link_libraries(${BIN_TARGET} PRIVATE "$ENV{BLOCKSDS}/libs/dswifi/lib/libdswifi9.a")

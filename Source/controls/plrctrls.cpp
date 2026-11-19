@@ -393,7 +393,7 @@ void CheckPlayerNearby()
 	const Player &myPlayer = *MyPlayer;
 
 	const SpellID spl = myPlayer._pRSpell;
-#ifndef __NDS__
+#ifndef HELLSPAWN
 	if (myPlayer.friendlyMode && spl != SpellID::Resurrect && spl != SpellID::HealOther)
 		return;
 #endif
@@ -403,7 +403,7 @@ void CheckPlayerNearby()
 			continue;
 		const int mx = player.position.future.x;
 		const int my = player.position.future.y;
-#ifdef __NDS__ /* NDS-PVP2: descartar solo si los dos estan en amistoso (salvo curar/resucitar); sin exigir luz */
+#ifdef HELLSPAWN /* NDS-PVP2: descartar solo si los dos estan en amistoso (salvo curar/resucitar); sin exigir luz */
 		if (myPlayer.friendlyMode && player.friendlyMode && spl != SpellID::Resurrect && spl != SpellID::HealOther)
 			continue;
 		if (dPlayer[mx][my] == 0
@@ -417,7 +417,7 @@ void CheckPlayerNearby()
 		if (myPlayer.UsesRangedWeapon() || HasRangedSpell() || spl == SpellID::HealOther) {
 			newDdistance = GetDistanceRanged(player.position.future);
 		} else {
-#ifdef __NDS__ /* NDS-PVP3: cuerpo a cuerpo, buscar jugadores hasta 10 casillas (con 0 nunca encontraba a nadie) */
+#ifdef HELLSPAWN /* NDS-PVP3: cuerpo a cuerpo, buscar jugadores hasta 10 casillas (con 0 nunca encontraba a nadie) */
 			newDdistance = GetDistance(player.position.future, 10);
 #else
 			newDdistance = GetDistance(player.position.future, distance);
@@ -531,7 +531,7 @@ void Interact()
 
 	const Player &myPlayer = *MyPlayer;
 
-#ifdef __NDS__ /* NDS-ATAQUE: en la mazmorra A ataca siempre; sin objetivo, hacia donde mira (con arco dispara lejos) */
+#ifdef HELLSPAWN /* NDS-ATAQUE: en la mazmorra A ataca siempre; sin objetivo, hacia donde mira (con arco dispara lejos) */
 	if (leveltype != DTYPE_TOWN && (IsStandingGround() || (pcursmonst == -1 && PlayerUnderCursor == nullptr))) {
 #else
 	if (leveltype != DTYPE_TOWN && IsStandingGround()) {

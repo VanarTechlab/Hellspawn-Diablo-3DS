@@ -1,3 +1,4 @@
+#include "hellspawn_prof.h"
 /**
  * @file diablo.cpp
  *
@@ -1344,7 +1345,7 @@ void DiabloSplash()
 
 	auto &intro = gbIsHellfire ? GetOptions().StartUp.hellfireIntro : GetOptions().StartUp.diabloIntro;
 
-#ifdef __NDS__
+#ifdef HELLSPAWN
 #define NDS_INTRO_SIEMPRE true /* NDS-INTRO: la intro siempre al arrancar */
 #else
 #define NDS_INTRO_SIEMPRE false

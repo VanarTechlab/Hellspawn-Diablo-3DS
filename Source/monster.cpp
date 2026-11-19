@@ -4215,6 +4215,17 @@ void StartMonsterDeath(Monster &monster, const Player &player, bool sendmsg)
 	monster.tag(player);
 	const Direction md = GetDirection(monster.position.tile, player.position.tile);
 	MonsterDeath(monster, md, sendmsg);
+#ifdef HELLSPAWN /* HS-GRITOS (Belial 64): grito de combate al matar; como mucho uno cada 15 s; sin unicos */
+	if (&player == MyPlayer && !gbIsMultiplayer && !monster.isUnique() && monster.type().type != MT_GOLEM) {
+		static uint32_t hsLastCry = 0;
+		const uint32_t now = SDL_GetTicks();
+		if (now - hsLastCry > 15000 && (now / 7) % 8 == 0) {
+			hsLastCry = now;
+			static const HeroSpeech cries[] = { HeroSpeech::Die, HeroSpeech::VengeanceIsMine, HeroSpeech::BackToTheGrave, HeroSpeech::OhTooEasy };
+			player.SaySpecific(cries[(now / 61) % 4]);
+		}
+	}
+#endif
 }
 
 void KillGolem(Monster &golem)
@@ -4395,6 +4406,19 @@ void GolumAi(Monster &golem)
 		}
 	}
 }
+
+#ifdef HELLSPAWN /* HS-BOSQUEVACIO (Belial 64): quita todos los monstruos del nivel recien creado */
+void HsRemoveLevelMonsters()
+{
+	for (size_t i = ReservedMonsterSlotsForGolems; i < ActiveMonsterCount; i++) {
+		Monster &m = Monsters[ActiveMonsters[i]];
+		if (InDungeonBounds(m.position.tile))
+			dMonster[m.position.tile.x][m.position.tile.y] = 0;
+		m.isInvalid = true;
+	}
+	DeleteMonsterList();
+}
+#endif
 
 void DeleteMonsterList()
 {

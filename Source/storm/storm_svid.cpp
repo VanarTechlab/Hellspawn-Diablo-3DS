@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <vector> /* HS3DS-VIDEO2 */
 
 #ifdef USE_SDL3
 #include <SDL3/SDL_error.h>
@@ -365,6 +366,9 @@ void SVidInitAudioStream(const SmackerAudioInfo &audioInfo)
 
 } // namespace
 
+#if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO2: video pequeno entero en memoria */
+std::vector<uint8_t> HsVidMem;
+#endif
 bool SVidPlayBegin(const char *filename, int flags)
 {
 	if ((flags & 0x10000) != 0 || (flags & 0x20000000) != 0) {
@@ -387,6 +391,29 @@ bool SVidPlayBegin(const char *filename, int flags)
 	// 0x200800 // Clear FB
 
 	auto *videoStream = OpenAssetAsSdlRwOps(filename);
+#if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO2 */
+	if (videoStream != nullptr) {
+		const long hsSize = static_cast<long>(SDL_RWseek(videoStream, 0, RW_SEEK_END));
+		SDL_RWseek(videoStream, 0, RW_SEEK_SET);
+		if (hsSize > 0 && hsSize <= 4L * 1024 * 1024) {
+			HsVidMem.resize(static_cast<size_t>(hsSize));
+			size_t hsGot = 0;
+			while (hsGot < HsVidMem.size()) {
+				const int n = static_cast<int>(SDL_RWread(videoStream, HsVidMem.data() + hsGot, 1, HsVidMem.size() - hsGot));
+				if (n <= 0)
+					break;
+				hsGot += static_cast<size_t>(n);
+			}
+			if (hsGot == HsVidMem.size()) {
+				SDL_RWclose(videoStream);
+				videoStream = SDL_RWFromConstMem(HsVidMem.data(), static_cast<int>(HsVidMem.size()));
+			} else {
+				HsVidMem.clear();
+				SDL_RWseek(videoStream, 0, RW_SEEK_SET);
+			}
+		}
+	}
+#endif
 	SVidHandle = Smacker_Open(videoStream);
 	if (!SVidHandle.isValid) {
 		return false;
@@ -515,6 +542,11 @@ const bool &NdsAllowFrameSkip = NdsVidAudio; /* NDS-VIDAUDIO: con sonido, el aud
 #else
 constexpr bool NdsAllowFrameSkip = true;
 #endif
+#if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO: margen de 1 fotograma antes de saltar */
+#define HsSkipMargin SVidFrameLength
+#else
+#define HsSkipMargin 0
+#endif
 bool SVidPlayContinue()
 {
 #ifdef __NDS__ /* NDS-DSV */
@@ -532,7 +564,7 @@ bool SVidPlayContinue()
 	}
 #endif
 
-	if (NdsAllowFrameSkip && GetTicksSmk() >= SVidFrameEnd) {
+	if (NdsAllowFrameSkip && GetTicksSmk() >= SVidFrameEnd + HsSkipMargin) {
 #if defined(USE_SDL3) && !defined(NOSOUND)
 		if (ShouldPushAudioData()) SDL_ClearAudioStream(SVidAudioStream);
 #endif
@@ -560,7 +592,7 @@ bool SVidPlayContinue()
 	}
 #endif
 
-	if (NdsAllowFrameSkip && GetTicksSmk() >= SVidFrameEnd) {
+	if (NdsAllowFrameSkip && GetTicksSmk() >= SVidFrameEnd + HsSkipMargin) {
 		return SVidLoadNextFrame(); // Skip video if the system is to slow
 	}
 
@@ -603,6 +635,10 @@ void SVidPlayEnd()
 
 	if (SVidHandle.isValid)
 		Smacker_Close(SVidHandle);
+#if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO2 */
+	HsVidMem.clear();
+	HsVidMem.shrink_to_fit();
+#endif
 
 	SVidPalette = nullptr;
 #ifdef __NDS__

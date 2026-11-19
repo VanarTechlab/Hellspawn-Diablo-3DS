@@ -63,3 +63,6 @@ set(JOY_BUTTON_TRIGGERRIGHT 9)
 #Additional gamepad related options
 set(DEVILUTIONX_GAMEPAD_TYPE Nintendo)
 set(PREFILL_PLAYER_NAME ON)
+
+# Hellspawn: cambios de juego compartidos con la DSi
+list(APPEND DEVILUTIONX_PLATFORM_COMPILE_DEFINITIONS HELLSPAWN)

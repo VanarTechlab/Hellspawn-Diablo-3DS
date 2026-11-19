@@ -13,7 +13,7 @@ void SurfaceBlit(const Surface &src, SDL_Rect srcRect, const Surface &dst, Point
 	// We do not use `SDL_BlitSurface` here because the palettes may be different objects
 	// and SDL would attempt to map them.
 
-#ifdef __NDS__ /* NDS-FIX: en SDL 1.2 SDL_Rect.w/h son Uint16 y un ancho negativo se volvia enorme */
+#ifdef HELLSPAWN /* NDS-FIX: en SDL 1.2 SDL_Rect.w/h son Uint16 y un ancho negativo se volvia enorme */
 	{
 		int sx = srcRect.x, sy = srcRect.y, w = srcRect.w, h = srcRect.h;
 		int dx = dstPosition.x, dy = dstPosition.y;

@@ -60,6 +60,7 @@
 #include "utils/utf8.hpp"
 
 namespace devilution {
+int NdsSucubosEstado(); /* HS-FRASES2: quests.cpp */
 
 uint8_t MyPlayerId;
 Player *MyPlayer;
@@ -2464,7 +2465,7 @@ void Player::_addExperience(uint32_t experience, int levelDelta)
 Point NdsKillPos; /* NDS-XPCOMPARTIDA: casilla del enemigo que acaba de morir */
 void AddPlrMonstExper(int lvl, unsigned exp, char pmask)
 {
-#ifdef __NDS__ /* NDS-XPCOMPARTIDA: con todos en amistoso, reparte con los que esten cerca (10 casillas) en el mismo nivel */
+#ifdef HELLSPAWN /* NDS-XPCOMPARTIDA: con todos en amistoso, reparte con los que esten cerca (10 casillas) en el mismo nivel */
 	if (gbIsMultiplayer && pmask != 0) {
 		bool ndsAllFriendly = true;
 		for (size_t i = 0; i < Players.size(); i++)
@@ -3509,6 +3510,11 @@ void PlayDungMsgs()
 	} else if (!setlevel && currlevel == 21 && !myPlayer._pLvlVisited[21] && (myPlayer.pDungMsgs & 32) == 0) {
 		myPlayer.Say(HeroSpeech::ThisIsAPlaceOfGreatPower, 30);
 		myPlayer.pDungMsgs |= 32;
+#ifdef HELLSPAWN /* HS-FRASES (Belial 64): "What was that?" en la guarida, "I've never been here before" en el bosque */
+	} else if (setlevel && !gbIsMultiplayer && !myPlayer._pSLvlVisited[setlvlnum]
+	    && ((setlvlnum == SL_BUTCHERLAIR && Quests[Q_BUTCHER]._qactive != QUEST_DONE) || (setlvlnum == SL_BOSQUE && NdsSucubosEstado() != 2))) {
+		myPlayer.Say(setlvlnum == SL_BUTCHERLAIR ? HeroSpeech::WhatWasThat : HeroSpeech::IveNeverBeenHereBefore, 40);
+#endif
 	} else if (setlevel && setlvlnum == SL_SKELKING && !gbIsSpawn && !myPlayer._pSLvlVisited[SL_SKELKING] && Quests[Q_SKELKING]._qactive == QUEST_ACTIVE) {
 		sfxdelay = 10;
 		sfxdnum = SfxID::LeoricGreeting;

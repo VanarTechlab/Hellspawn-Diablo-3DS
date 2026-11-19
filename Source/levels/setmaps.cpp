@@ -25,6 +25,10 @@
 #include "engine/light_tables.hpp" /* NDS-BOSQUE2 */
 
 namespace devilution {
+#ifdef HELLSPAWN
+int NdsSucubosEstado();      /* quests.cpp */
+void HsRemoveLevelMonsters(); /* monster.cpp (HS-BOSQUEVACIO) */
+#endif
 
 int NdsBosqueW = 0; /* NDS-BOSQUE */
 int NdsBosqueH = 0;
@@ -89,6 +93,10 @@ void SetMapTransparency(const char *path)
 std::expected<void, std::string> NdsLoadBosque(const char *path)
 {
 	RETURN_IF_ERROR(LoadDungeonBase(path, { 0, 0 }, 0, 0)); /* limpia el nivel; capas de monstruos/objetos vacias */
+#ifdef HELLSPAWN /* HS-BOSQUEVACIO2 (Belial 64): con Luces del Bosque terminada, el bosque queda vacio (sin sucubos) */
+	if (!gbIsMultiplayer && NdsSucubosEstado() == 2)
+		HsRemoveLevelMonsters();
+#endif
 	memset(dungeon, 0, sizeof(dungeon)); /* sin mapa automatico de Catedral */
 	auto dunData = LoadFileInMem<uint16_t>(path);
 	const WorldTileSize size = GetDunSize(dunData.get());

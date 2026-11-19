@@ -12,7 +12,7 @@
 #include "player.h"
 #include "utils/algorithm/container.hpp"
 
-#ifdef __NDS__
+#ifdef HELLSPAWN
 #define NDS_AUTOGOLD true /* NDS-ORO: el oro se recoge siempre al pasar cerca */
 #else
 #define NDS_AUTOGOLD (*GetOptions().Gameplay.autoGoldPickup)

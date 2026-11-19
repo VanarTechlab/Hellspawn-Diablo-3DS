@@ -763,6 +763,12 @@ void InitTowners()
 
 	// Load towner data from TSV files
 	LoadTownerData();
+#ifdef HELLSPAWN /* HS-FARNHAM: Farnham donde eligio Vanar (como en Belial 64); antes 71,84 */
+	for (auto &hsEntry : TownersDataEntries) {
+		if (hsEntry.type == TOWN_DRUNK && hsEntry.position == Point { 71, 84 })
+			hsEntry.position = Point { 55, 72 };
+	}
+#endif
 	TownerAnimOrderStorage.clear();
 
 	// Build lookup table for towner behaviors

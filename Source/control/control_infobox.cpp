@@ -452,6 +452,20 @@ void DrawInfoBox(const Surface &out)
 			AddInfoBoxString(_("Right click to inspect"));
 		}
 	}
+#if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-AVISOS: avisos de mision y entrada al bosque */
+	if (InfoString.empty() && MyPlayer != nullptr) {
+		if (NdsHudAvisoTexto() != nullptr) {
+			InfoString = std::string(NdsHudAvisoTexto());
+			InfoColor = UiFlags::ColorWhitegold;
+		} else if (!gbIsMultiplayer && !setlevel && leveltype == DTYPE_TOWN) {
+			const Point hsP = MyPlayer->position.tile;
+			if (hsP.x <= 14 && hsP.y >= 47 && hsP.y <= 57) {
+				InfoString = MyPlayer->getCharacterLevel() >= 18 ? _("Entrance to the Forest") : _("Entrance to the Forest (level 18)");
+				InfoColor = UiFlags::ColorWhitegold;
+			}
+		}
+	}
+#endif
 	if (!InfoString.empty())
 		PrintInfo(out);
 #ifdef __NDS__ /* NDS-ITEMTXT4: objeto del inventario, cofre o tienda: descripcion a tamano real arriba */

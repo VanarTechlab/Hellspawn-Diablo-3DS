@@ -110,7 +110,7 @@ struct Surface {
 	 */
 	Surface subregion(int x, int y, int w, int h) const
 	{
-		#ifdef __NDS__ /* NDS-FIX-SUB: recortar a la superficie real (antes escribia fuera) */
+		#ifdef HELLSPAWN /* NDS-FIX-SUB: recortar a la superficie real (antes escribia fuera) */
 		if (x < 0 || y < 0 || x >= static_cast<int>(region.w) || y >= static_cast<int>(region.h)) {
 			x = 0;
 			y = 0;
