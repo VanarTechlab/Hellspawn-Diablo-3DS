@@ -39,7 +39,7 @@ namespace devilution {
 namespace {
 
 const SDL_Rect VIEWPORT = { 0, 114, 640, 251 };
-#ifdef __NDS__ /* NDS-CREDITOS2: letra 24 y lineas mas separadas */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-CREDITOS2: letra 24 y lineas mas separadas */
 const int LINE_H = 28;
 #define NDS_CRED_WRAP GameFont24
 #define NDS_CRED_FLAGS (UiFlags::FontSize24 | UiFlags::ColorUiSilver)

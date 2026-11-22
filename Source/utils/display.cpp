@@ -71,7 +71,11 @@ namespace devilution {
 extern SDLSurfaceUniquePtr RendererTextureSurface; /** defined in dx.cpp */
 SDL_Window *ghMainWnd;
 
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-VISTA: mundo 800x480 + panel 128 debajo */
+Size forceResolution { 640, 960 }; /* HS3DS-ZOOM: mundo 640x384 + hueco + zona tactil 640x480 */
+#else
 Size forceResolution;
+#endif
 
 uint16_t gnScreenWidth;
 uint16_t gnScreenHeight;
@@ -159,6 +163,9 @@ void CalculateUIRectangle()
 		{ (gnScreenWidth - UISize.width) / 2, (gnScreenHeight - UISize.height) / 2 },
 		UISize
 	};
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-UIARRIBA: menus, tiendas y dialogos en la pantalla de arriba */
+	UIRectangle.position.y = 0;
+#endif
 }
 
 Size GetPreferredWindowSize()
@@ -484,9 +491,17 @@ float GetDpiScalingFactor()
 #endif
 }
 
+#if defined(HELLSPAWN) && defined(__3DS__)
+void HsCtrWaitIdle(); /* HS3DS-HILO (dx.cpp) */
+void HsLog(const char *fmt, ...); /* HS3DS-REGISTRO0 */
+#endif
 #ifdef USE_SDL1
 void SetVideoMode(int width, int height, int bpp, uint32_t flags)
 {
+#if defined(HELLSPAWN) && defined(__3DS__)
+	HsCtrWaitIdle(); /* HS3DS-HILO: que el nucleo 2 no escriba en pantalla mientras la SDL la reconfigura */
+	HsLog("modo de video %dx%d (empieza)", width, height); /* HS3DS-REGISTRO */
+#endif
 	Log("Setting video mode {}x{} bpp={} flags=0x{:08X}", width, height, bpp, flags);
 	ghMainWnd = SDL_SetVideoMode(width, height, bpp, flags);
 	if (ghMainWnd == nullptr) {
@@ -496,6 +511,9 @@ void SetVideoMode(int width, int height, int bpp, uint32_t flags)
 	if (surface == nullptr) {
 		ErrSdl();
 	}
+#if defined(HELLSPAWN) && defined(__3DS__)
+	HsLog("modo de video listo"); /* HS3DS-REGISTRO2 */
+#endif
 	Log("Video surface is now {}x{} bpp={} flags=0x{:08X}",
 	    surface->w, surface->h, surface->format->BitsPerPixel, surface->flags);
 }

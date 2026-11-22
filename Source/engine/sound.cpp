@@ -338,12 +338,19 @@ void music_stop()
 	sgnMusicTrack = NUM_MUSIC;
 }
 
-#ifdef __NDS__
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS */
 extern "C" void nds_extra_mark(const char *name); /* NDS-MUSICAS2 */
+#endif
+#if defined(HELLSPAWN) && defined(__3DS__)
+void HsLog(const char *fmt, ...); /* HS3DS-REGISTRO (dx.cpp) */
+#define HSLOG(...) HsLog(__VA_ARGS__)
+#else
+#define HSLOG(...) ((void)0)
 #endif
 void music_start(_music_id nTrack)
 {
-#ifdef __NDS__ /* NDS-MUSICAS: apuntar la musica como escuchada (Extras > Soundtrack) */
+	HSLOG("musica %d", static_cast<int>(nTrack)); /* HS3DS-REGISTRO */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS2 NDS-MUSICAS: apuntar la musica como escuchada (Extras > Soundtrack) */
 	{
 		char ndsN[8] = "mus0";
 		ndsN[3] = static_cast<char>('0' + static_cast<int>(nTrack));

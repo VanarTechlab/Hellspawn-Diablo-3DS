@@ -234,6 +234,9 @@ void LoadOptions()
 #ifdef __NDS__ /* NDS-RAPIDO3: luz por pixel siempre apagada al arrancar (cuesta mucho en la DSi) */
 	options.Graphics.perPixelLighting.SetValue(false);
 #endif
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-XP: barra de experiencia siempre visible */
+	options.Gameplay.experienceBar.SetValue(true);
+#endif
 
 	ini->getUtf8Buf("Hellfire", "SItem", options.Hellfire.szItem, sizeof(options.Hellfire.szItem));
 	ini->getUtf8Buf("Network", "Bind Address", "0.0.0.0", options.Network.szBindAddress, sizeof(options.Network.szBindAddress));
@@ -1393,6 +1396,12 @@ std::string_view PadmapperOptions::Action::GetName() const
 
 void PadmapperOptions::Action::LoadFromIni(std::string_view category)
 {
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-BOTONES4: estos botones siempre los de Hellspawn (el diablo.ini guardaba los viejos) */
+	if (key == "SpellAction" || key == "DisplaySpells" || key == "CancelAction") {
+		SetValue(defaultInput);
+		return;
+	}
+#endif
 	const std::span<const Ini::Value> iniValues = ini->get(category, key);
 	if (iniValues.empty()) {
 		SetValue(defaultInput);

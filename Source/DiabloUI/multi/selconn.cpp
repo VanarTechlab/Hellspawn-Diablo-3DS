@@ -48,7 +48,7 @@ std::vector<std::unique_ptr<UiListItem>> vecConnItems;
 std::vector<std::unique_ptr<UiItemBase>> vecSelConnDlg;
 
 #define DESCRIPTION_WIDTH 205
-#ifdef __NDS__ /* NDS-SELMULTI: letra grande en los menus de multijugador */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELMULTI: letra grande en los menus de multijugador */
 #define NDS_DESC_FLAGS (UiFlags::FontSize24 | UiFlags::ColorUiSilver)
 #define NDS_DESC_LH 24
 #define NDS_WRAP_FONT GameFont24
@@ -93,7 +93,7 @@ void SelconnLoad()
 	const SDL_Rect rect1 = { (Sint16)(uiPosition.x + 24), ((Sint16)(uiPosition.y + 161)), 590, 35 };
 	vecSelConnDlg.push_back(std::make_unique<UiArtText>(_("Multi Player Game").data(), rect1, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiSilver, 3));
 
-#ifdef __NDS__ /* NDS-SELMULTI: textos de la izquierda a tamano 24; sin "no gateway needed" */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELMULTI: textos de la izquierda a tamano 24; sin "no gateway needed" */
 	const SDL_Rect rect2 = { (Sint16)(uiPosition.x + 35), (Sint16)(uiPosition.y + 214), DESCRIPTION_WIDTH, 26 };
 	vecSelConnDlg.push_back(std::make_unique<UiArtText>(selconn_MaxPlayers, rect2, NDS_DESC_FLAGS));
 
@@ -125,7 +125,7 @@ void SelconnLoad()
 	const SDL_Rect rect8 = { (Sint16)(uiPosition.x + 16), (Sint16)(uiPosition.y + 427), 250, 35 };
 	vecSelConnDlg.push_back(std::make_unique<UiArtTextButton>(_("Change Gateway"), nullptr, rect8, UiFlags::AlignCenter | UiFlags::VerticalCenter | UiFlags::FontSize30 | UiFlags::ColorUiGold | UiFlags::ElementHidden));
 
-#ifdef __NDS__ /* NDS-SELMULTI2: letra 42 (la del menu principal) */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELMULTI2: letra 42 (la del menu principal) */
 	vecSelConnDlg.push_back(std::make_unique<UiList>(vecConnItems, vecConnItems.size(), uiPosition.x + 305, (uiPosition.y + 256), 285, 43, UiFlags::AlignCenter | UiFlags::FontSize42 | UiFlags::VerticalCenter | UiFlags::ColorUiGold));
 #else
 	vecSelConnDlg.push_back(std::make_unique<UiList>(vecConnItems, vecConnItems.size(), uiPosition.x + 305, (uiPosition.y + 256), 285, NDS_LIST_H, UiFlags::AlignCenter | NDS_LIST_FONT | UiFlags::VerticalCenter | UiFlags::ColorUiGoldDark)); /* NDS-SELMULTI */
@@ -180,7 +180,7 @@ void SelconnFocus(size_t value)
 		break;
 	}
 
-#ifdef __NDS__ /* NDS-SELMULTI: texto corto, cabe a tamano 24 */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELMULTI: texto corto, cabe a tamano 24 */
 	CopyUtf8(selconn_MaxPlayers, FormatRuntime(GetLanguageCode() == "es" ? "Jugadores: {:d}" : "Players: {:d}", players), sizeof(selconn_MaxPlayers)); /* NDS-OFFLINE */
 #else
 	CopyUtf8(selconn_MaxPlayers, FormatRuntime(_("Players Supported: {:d}"), players), sizeof(selconn_MaxPlayers));

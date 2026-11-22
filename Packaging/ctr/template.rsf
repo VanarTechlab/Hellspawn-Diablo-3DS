@@ -1,6 +1,6 @@
 BasicInfo:
-  Title                   : DevilutionX
-  ProductCode             : CTR-P-DIABLO
+  Title                   : Hellspwn # HS3DS-NOMBRE (max. 8 letras)
+  ProductCode             : CTR-P-HSPN # HS3DS-NOMBRE2
   Logo                    : Homebrew # Nintendo / Licensed / Distributed / iQue / iQueForSystem
 
 RomFs:
@@ -9,7 +9,7 @@ RomFs:
 
 TitleInfo:
   Category                : Application
-  UniqueId                : 0x3F395
+  UniqueId                : 0x48535 # HS3DS-NOMBRE3: propio (el oficial es 0x3F395)
 
 Option:
   UseOnSD                 : true # true if App is to be installed to SD

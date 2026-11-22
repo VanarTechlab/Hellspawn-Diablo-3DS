@@ -30,6 +30,17 @@
 
 #include "DiabloUI/ui_flags.hpp"
 #include "automap.h"
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-PANT4 */
+#include <3ds.h> /* HS3DS-MEDIR */
+#include "control/control.hpp"
+#include "engine/render/primitive_render.hpp"
+#include <algorithm> /* HS3DS-DESCRIPCION */
+#include "engine/palette.h"
+namespace devilution {
+extern uint64_t HsPerfMiniSum; /* HS3DS-MEDIR (dx.cpp) */
+extern bool HsFriendlyReq; /* HS3DS-PAZPVP (events.cpp) */
+}
+#endif
 #include "controls/control_mode.hpp"
 #include "controls/plrctrls.h"
 #include "cursor.h"
@@ -1457,9 +1468,46 @@ void DrawView(const Surface &out, Point startPosition)
 	Displacement offset = {};
 	{ CalcFirstTilePosition(startPosition, offset); nds_lua_check(100); } /* NDS-CHECK2 */
 	{ const unsigned ndsPg = nds_usec(); DrawGame(out, startPosition, offset); nds_prof_add(1, nds_usec() - ndsPg); /* NDS-PROF */ nds_lua_check(101); } /* NDS-CHECK2 */
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-PANT4: zona de la tactil (x 80-719, filas 480-831) */
+	const uint64_t hsMt0 = svcGetSystemTick(); /* HS3DS-MEDIR */
+	FillRect(out, 0, 384, 640, 96, 0); /* HS3DS-ZOOM: hueco entre el mundo y la zona tactil */
+	{ /* HS3DS-MINIRAPIDO: con paneles abiertos se borra siempre; si no, minimapa 1 de cada 4 fotogramas */
+		static int hsMiniCnt = 0;
+		static bool hsPanelsWere = true;
+		const bool hsPanels = IsLeftPanelOpen() || IsRightPanelOpen();
+		if (hsPanels || hsPanels != hsPanelsWere || (++hsMiniCnt & 3) == 0) {
+			FillRect(out, 0, 480, 640, 352, 0); /* HS3DS-ZOOMb */
+			if (!hsPanels) {
+				const AutomapType hsPrev = CurrentAutomapType;
+				CurrentAutomapType = AutomapType::Minimap;
+				DrawAutomap(out.subregion(0, 480, 640, 339)); /* HS3DS-ZOOMc */
+				CurrentAutomapType = hsPrev;
+			}
+		}
+		hsPanelsWere = hsPanels;
+	}
+	if (gbIsMultiplayer) { /* HS3DS-PAZPVP3: recuadro arriba a la derecha de la pantalla de abajo */
+		if (HsFriendlyReq) {
+			HsFriendlyReq = false;
+			NetSendCmd(true, CMD_FRIENDLYMODE);
+		}
+		if (!IsLeftPanelOpen() && !IsRightPanelOpen()) {
+			const bool hsPaz = MyPlayer->friendlyMode;
+			const uint8_t hsCol = hsPaz ? PAL16_BLUE + 4 : PAL16_RED + 4;
+			FillRect(out, 528, 486, 104, 46, hsCol);
+			FillRect(out, 531, 489, 98, 40, 0);
+			DrawString(out, hsPaz ? "PAZ" : "PVP", { { 528, 486 }, { 104, 46 } },
+			    { .flags = UiFlags::FontSize30 | (hsPaz ? UiFlags::ColorBlue : UiFlags::ColorRed) | UiFlags::AlignCenter | UiFlags::VerticalCenter });
+		}
+	}
+	HsPerfMiniSum += svcGetSystemTick() - hsMt0; /* HS3DS-MEDIR */
+	if (AutomapActive && CurrentAutomapType != AutomapType::Minimap)
+		DrawAutomap(out.subregionY(0, gnViewportHeight)); /* mapa grande: arriba, sobre el mundo */
+#else
 	if (AutomapActive) {
 		{ DrawAutomap(out.subregionY(0, gnViewportHeight)); nds_lua_check(102); } /* NDS-CHECK2 */
 	}
+#endif
 #ifdef _DEBUG
 	bool debugGridTextNeeded = IsDebugGridTextNeeded();
 	if (debugGridTextNeeded || DebugGrid) {
@@ -1597,7 +1645,11 @@ void DrawView(const Surface &out, Point startPosition)
 	}
 #endif
 	if (IsDiabloMsgAvailable()) {
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-MENSAJES: en el centro del mundo de arriba */
+		DrawDiabloMsg(out.subregionY(0, gnViewportHeight));
+#else
 		{ DrawDiabloMsg(out.subregionY(0, out.h() - GetMainPanel().size.height)); nds_lua_check(127); } /* NDS-CHECK2 */
+#endif
 	}
 
 	{ DrawControllerModifierHints(ui); nds_lua_check(128); } /* NDS-CHECK2 */
@@ -1605,6 +1657,25 @@ void DrawView(const Surface &out, Point startPosition)
 	{ gmenu_draw(ui); nds_lua_check(130); } /* NDS-CHECK2 */
 	{ doom_draw(ui); nds_lua_check(131); } /* NDS-CHECK2 */
 	{ DrawInfoBox(ui); nds_lua_check(132); } /* NDS-CHECK2 */
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-DESCRIPCION: con paneles abiertos, el texto del cuadro del panel sale arriba */
+	if ((IsLeftPanelOpen() || IsRightPanelOpen()) && !InfoString.empty()) {
+		const std::string_view hsText = InfoString.str();
+		const int hsLines = static_cast<int>(std::count(hsText.begin(), hsText.end(), '\n')) + 1;
+		constexpr int hsLh = 26;
+		const int hsW = 560;
+		const int hsH = hsLines * hsLh + 14;
+		const int hsX = (640 - hsW) / 2;
+		const int hsY = 8;
+		DrawHalfTransparentRectTo(out, hsX, hsY, hsW, hsH);
+		DrawHalfTransparentRectTo(out, hsX, hsY, hsW, hsH); /* dos veces: mas oscuro, se lee mejor */
+		DrawHorizontalLine(out, { hsX, hsY }, hsW, PAL16_YELLOW + 8);
+		DrawHorizontalLine(out, { hsX, hsY + hsH - 1 }, hsW, PAL16_YELLOW + 8);
+		DrawVerticalLine(out, { hsX, hsY }, hsH, PAL16_YELLOW + 8);
+		DrawVerticalLine(out, { hsX + hsW - 1, hsY }, hsH, PAL16_YELLOW + 8);
+		DrawString(out, hsText, Rectangle { { hsX + 6, hsY + 7 }, { hsW - 12, hsH - 14 } },
+		    { .flags = InfoColor | UiFlags::AlignCenter | UiFlags::FontSize24, .spacing = 1, .lineHeight = hsLh });
+	}
+#endif
 	UpdateLifeManaPercent(); // Update life/mana totals before rendering any portion of the flask.
 #ifdef __NDS__ /* NDS-HUD3: limpiar lo que queda detras de la parte alta de los frascos */
 	if (NdsUiSdl != nullptr) {
@@ -1857,6 +1928,9 @@ void CalcViewportGeometry()
 	const int panelHeight = GetMainPanel().size.height / zoomFactor;
 	const int pixelsToPanel = screenHeight - panelHeight;
 	Point playerPosition { screenWidth / 2, pixelsToPanel / 2 };
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-CENTRO: centro del mundo (480 filas), no de la imagen entera */
+	playerPosition.y = (GetViewportHeight() / zoomFactor) / 2;
+#endif
 
 	if (*GetOptions().Graphics.zoom)
 		playerPosition.y += TILE_HEIGHT / 4;

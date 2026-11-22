@@ -57,6 +57,9 @@
 #include "utils/language.h"
 #include "utils/log.hpp"
 #include "utils/str_cat.hpp"
+#ifdef HELLSPAWN
+#include "diablo_msg.hpp" /* HS-NIVEL */
+#endif
 #include "utils/utf8.hpp"
 
 namespace devilution {
@@ -2398,6 +2401,9 @@ void NextPlrLevel(Player &player)
 	player._pHPBase = player._pMaxHPBase;
 
 	if (&player == MyPlayer) {
+#ifdef HELLSPAWN /* HS-NIVEL2: aviso grande al subir de nivel */
+		InitDiabloMsg(StrCat(GetLanguageCode().substr(0, 2) == "es" ? "Subes al nivel " : "Level up! Level ", static_cast<int>(player.getCharacterLevel())));
+#endif
 		RedrawComponent(PanelDrawComponent::Health);
 	}
 

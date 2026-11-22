@@ -502,7 +502,7 @@ void selhero_Init()
 	SELHERO_DIALOG_HERO_IMG = heroImg.get();
 	vecSelHeroDialog.push_back(std::move(heroImg));
 
-#ifdef __NDS__ /* NDS-SELHERO: estadisticas con letra mas grande y clara, etiquetas cortas */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELHERO: estadisticas con letra mas grande y clara, etiquetas cortas */
 	const UiFlags labelFlags = UiFlags::FontSize24 | UiFlags::ColorUiSilver | UiFlags::AlignRight;
 	const UiFlags valueFlags = UiFlags::FontSize24 | UiFlags::ColorUiSilver | UiFlags::AlignCenter;
 	const int labelX = uiPosition.x + 34;
@@ -566,7 +566,7 @@ void selhero_List_Init()
 	}
 	vecSelHeroDlgItems.push_back(std::make_unique<UiListItem>(_("New Hero"), static_cast<int>(selhero_SaveCount)));
 
-#ifdef __NDS__ /* NDS-SELHERO2: nombres mas grandes (fuente 30, 5 visibles) */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-MENUS2 NDS-SELHERO2: nombres mas grandes (fuente 30, 5 visibles) */
 	vecSelDlgItems.push_back(std::make_unique<UiList>(vecSelHeroDlgItems, 5, uiPosition.x + 265, (uiPosition.y + 256), 320, 33, UiFlags::AlignCenter | UiFlags::FontSize30 | UiFlags::ColorUiGold));
 #else
 	vecSelDlgItems.push_back(std::make_unique<UiList>(vecSelHeroDlgItems, 6, uiPosition.x + 265, (uiPosition.y + 256), 320, 26, UiFlags::AlignCenter | UiFlags::FontSize24 | UiFlags::ColorUiGold));

@@ -37,6 +37,11 @@ void DrawFlaskAbovePanel(const Surface &out, const Surface &celBuf, Point target
  */
 void DrawFlaskUpper(const Surface &out, const Surface &sourceBuffer, int offset, int fillPer)
 {
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-FRASCOS: el panel va abajo; sin puntas sobre el mundo */
+	/* HS3DS-PANT5: ya no hace falta quitarlas: caen en la zona de la tactil */
+	if (IsLeftPanelOpen() || IsRightPanelOpen()) /* HS3DS-FRASCOS2: no encima de los paneles abiertos */
+		return;
+#endif
 	const Rectangle &rect = FlaskTopRect;
 	const int emptyRows = std::clamp(81 - fillPer, 0, rect.size.height);
 	const int filledRows = rect.size.height - emptyRows;

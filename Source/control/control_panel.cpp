@@ -285,10 +285,19 @@ void CalculatePanelAreas()
 #endif
 
 	gnViewportHeight = gnScreenHeight;
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-VISTA2: el panel va en la pantalla de abajo */
+	if (true) {
+#else
 	if (gnScreenWidth <= MainPanel.size.width) {
+#endif
 		// Part of the screen is fully obscured by the UI
 		gnViewportHeight -= MainPanel.size.height;
 	}
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-PANT2: mundo arriba (480 filas); inventario/personaje abajo */
+	gnViewportHeight = 384; /* HS3DS-ZOOM */
+	LeftPanel.position = { 0, 480 };
+	RightPanel.position = { 320, 480 };
+#endif
 }
 
 void FocusOnCharInfo()

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <optional>
 #include <vector> /* HS3DS-VIDEO2 */
+#include "game_mode.hpp" /* HS3DS-VIDEO3 */
 
 #ifdef USE_SDL3
 #include <SDL3/SDL_error.h>
@@ -134,6 +135,10 @@ void TrySetVideoModeToSVidForSDL1()
 		w = SVidHeight * display->w / display->h;
 		h = SVidHeight;
 	}
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-VIDEOS: el modo de video = tamano del video */
+	w = static_cast<int>(SVidWidth);
+	h = static_cast<int>(SVidHeight);
+#endif
 
 #ifndef SDL1_FORCE_SVID_VIDEO_MODE
 	if (!SDL_VideoModeOK(w, h, /*bpp=*/display->format->BitsPerPixel, flags)) {
@@ -369,8 +374,15 @@ void SVidInitAudioStream(const SmackerAudioInfo &audioInfo)
 #if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO2: video pequeno entero en memoria */
 std::vector<uint8_t> HsVidMem;
 #endif
+#if defined(HELLSPAWN) && defined(__3DS__)
+void HsLog(const char *fmt, ...); /* HS3DS-REGISTRO (dx.cpp) */
+#define HSLOG(...) HsLog(__VA_ARGS__)
+#else
+#define HSLOG(...) ((void)0)
+#endif
 bool SVidPlayBegin(const char *filename, int flags)
 {
+	HSLOG("video empieza %s", filename); /* HS3DS-REGISTRO */
 	if ((flags & 0x10000) != 0 || (flags & 0x20000000) != 0) {
 		return false;
 	}
@@ -395,7 +407,7 @@ bool SVidPlayBegin(const char *filename, int flags)
 	if (videoStream != nullptr) {
 		const long hsSize = static_cast<long>(SDL_RWseek(videoStream, 0, RW_SEEK_END));
 		SDL_RWseek(videoStream, 0, RW_SEEK_SET);
-		if (hsSize > 0 && hsSize <= 4L * 1024 * 1024) {
+		if (gbRunGame && hsSize > 0 && hsSize <= 4L * 1024 * 1024) { /* HS3DS-VIDEO3: solo en partida */
 			HsVidMem.resize(static_cast<size_t>(hsSize));
 			size_t hsGot = 0;
 			while (hsGot < HsVidMem.size()) {
@@ -609,6 +621,7 @@ bool SVidPlayContinue()
 
 void SVidPlayEnd()
 {
+	HSLOG("video: fin (empieza)"); /* HS3DS-REGISTRO2 */
 #ifdef __NDS__ /* NDS-DSV */
 	if (NdsDsvActive) {
 		nds_dsv_end();
@@ -633,8 +646,10 @@ void SVidPlayEnd()
 	}
 #endif
 
+	HSLOG("video: sonido cerrado"); /* HS3DS-REGISTRO3 */
 	if (SVidHandle.isValid)
 		Smacker_Close(SVidHandle);
+	HSLOG("video: archivo cerrado");
 #if defined(HELLSPAWN) && !defined(__NDS__) /* HS3DS-VIDEO2 */
 	HsVidMem.clear();
 	HsVidMem.shrink_to_fit();

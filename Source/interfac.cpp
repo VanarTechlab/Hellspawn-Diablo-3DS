@@ -590,6 +590,8 @@ void ProgressEventHandler(const SDL_Event &event, uint16_t modState)
 
 } // namespace
 
+bool HsIsProgress() { return IsProgress; } /* HS3DS-PANT6 */
+
 void RegisterCustomEvents()
 {
 #ifndef USE_SDL1

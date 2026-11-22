@@ -559,9 +559,9 @@ if(PS4)
 endif()
 
 if(NINTENDO_3DS)
-  set(APP_TITLE       "DevilutionX")
-  set(APP_DESCRIPTION "DevilutionX port for 3DS")
-  set(APP_AUTHOR      "Diasurgical Team")
+  set(APP_TITLE       "Hellspawn: Diablo 3DS") # HS3DS-NOMBRE + HS3DS-NOMBRE3
+  set(APP_DESCRIPTION "Hellspawn v1.0 para New 3DS")
+  set(APP_AUTHOR      "Vanar")
   set(APP_ICON        "${PROJECT_SOURCE_DIR}/Packaging/ctr/icon.png")
   set(APP_BANNER      "${PROJECT_SOURCE_DIR}/Packaging/ctr/banner.png")
   set(APP_AUDIO       "${CMAKE_BINARY_DIR}/banner_audio.wav")

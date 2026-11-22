@@ -35,12 +35,24 @@
 #include "platform/vita/touch.h"
 #endif
 
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-TACTIL */
+#include <3ds.h>
+#include "game_mode.hpp"
+#include "control/control.hpp" /* HS3DS-PANT7c */
+#include "inv.h" /* HS3DS-PANELES */
+#include "panels/quest_log.hpp"
+#endif
+
 #ifdef __SWITCH__
 #include "platform/switch/docking.h"
 #include <switch.h>
 #endif
 
 namespace devilution {
+
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-PAZPVP: lo pide la tactil, lo envia scrollrt.cpp */
+bool HsFriendlyReq = false;
+#endif
 
 namespace {
 
@@ -49,6 +61,76 @@ bool FalseAvail(const char *name, int value)
 	LogVerbose("Unhandled SDL event: {} {}", name, value);
 	return true;
 }
+
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-TACTIL: la tactil solo toca el panel */
+int HsTouchX = 0;
+int HsTouchY = 0;
+bool HsTouchDownOk = false;
+
+/* Devuelve false si el evento del raton (que viene de la tactil) hay que descartarlo. */
+bool HsTouchRemap(SDL_Event &e)
+{
+	if (e.type != SDL_MOUSEBUTTONUP) {
+		touchPosition tp;
+		hidTouchRead(&tp);
+		if (tp.px != 0 || tp.py != 0) {
+			HsTouchX = tp.px;
+			HsTouchY = tp.py;
+		}
+	}
+	/* HS3DS-PANELES: la tactil segun lo que muestre la pantalla de abajo */
+	int hsX = -1;
+	int hsY = -1;
+	const bool hsL = IsLeftPanelOpen();
+	const bool hsR = IsRightPanelOpen();
+	if (hsL && hsR) { /* los dos paneles, a la mitad, en las filas 32-207 */
+		if (HsTouchY >= 32 && HsTouchY < 208) {
+			hsX = HsTouchX * 2;
+			hsY = 480 + (HsTouchY - 32) * 2;
+		}
+	} else if (hsL || hsR) { /* un panel a toda la altura (218x240, columnas 51-268) */
+		if (HsTouchX >= 51 && HsTouchX < 269) {
+			hsX = (hsL ? 0 : 320) + (HsTouchX - 51) * 352 / 240;
+			hsY = 480 + HsTouchY * 352 / 240;
+		} else if (e.type == SDL_MOUSEBUTTONDOWN && gbRunGame) { /* tocar los lados negros cierra los paneles */
+			CloseInventory();
+			CloseCharPanel();
+			SpellbookFlag = false;
+			QuestLogIsOpen = false;
+		}
+	} else { /* HUD: solo el panel clasico (filas 176-239 de la tactil) */
+		const int y = 480 + HsTouchY * 2;
+		if (gbIsMultiplayer && gbRunGame && HsTouchX >= 260 && HsTouchY < 30) { /* HS3DS-PAZPVP2: recuadro PAZ/PVP */
+			if (e.type == SDL_MOUSEBUTTONDOWN)
+				HsFriendlyReq = true;
+			HsTouchDownOk = false;
+			return false;
+		}
+		if (y >= 832) {
+			hsX = HsTouchX * 2;
+			hsY = y;
+		}
+	}
+	const bool enPanel = gbRunGame && hsX >= 0;
+	bool ok = enPanel;
+	if (e.type == SDL_MOUSEBUTTONDOWN)
+		HsTouchDownOk = enPanel;
+	else if (e.type == SDL_MOUSEBUTTONUP)
+		ok = HsTouchDownOk; /* si el toque empezo en el panel, soltar siempre se entrega */
+	if (!ok)
+		return false;
+	const int mx = hsX; /* HS3DS-PANT7b */
+	const int my = hsY;
+	if (e.type == SDL_MOUSEMOTION) {
+		e.motion.x = static_cast<Uint16>(mx);
+		e.motion.y = static_cast<Uint16>(my);
+	} else {
+		e.button.x = static_cast<Uint16>(mx);
+		e.button.y = static_cast<Uint16>(my);
+	}
+	return true;
+}
+#endif
 
 bool FetchMessage_Real(SDL_Event *event, uint16_t *modState)
 {
@@ -97,6 +179,13 @@ bool FetchMessage_Real(SDL_Event *event, uint16_t *modState)
 		LogWarn(LogCategory::Application, "SDL_ConvertEventToRenderCoordinates: {}", SDL_GetError());
 		SDL_ClearError();
 	}
+
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-TACTIL */
+	if (e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
+		if (!HsTouchRemap(e))
+			return FalseAvail("HS3DS: toque fuera del panel", 0);
+	}
+#endif
 
 	if (HandleControllerAddedOrRemovedEvent(e))
 		return true;

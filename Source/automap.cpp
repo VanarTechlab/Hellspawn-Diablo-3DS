@@ -1563,6 +1563,9 @@ void InitAutomapOnce()
 	const Size minimapSize { minimapWidth, minimapWidth / 2 };
 	const int minimapPadding = gnScreenWidth / 128;
 	MinimapRect = Rectangle { { gnScreenWidth - minimapPadding - minimapSize.width, minimapPadding }, minimapSize };
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-PANT3: minimapa grande en la tactil */
+	MinimapRect = Rectangle { { 8, 8 }, { 624, 320 } };
+#endif
 
 	// Set minimap scale
 	const int height = 480;

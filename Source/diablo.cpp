@@ -2272,7 +2272,11 @@ void InitPadmapActions()
 	    "SpellAction",
 	    N_("Spell action"),
 	    N_("Cast the active spell."),
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-BOTONES: hechizo con B */
+	    ControllerButton_BUTTON_A,
+#else
 	    ControllerButton_BUTTON_X,
+#endif
 	    [] {
 		    ControllerActionHeld = GameActionType_CAST_SPELL;
 		    LastPlayerAction = PlayerActionType::None;
@@ -2282,7 +2286,11 @@ void InitPadmapActions()
 		    ControllerActionHeld = GameActionType_NONE;
 		    LastPlayerAction = PlayerActionType::None;
 	    },
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-BOTONES2: con un panel abierto, B pasa a "cerrar" (CancelAction) */
+	    []() { return CanPlayerTakeAction() && !InGameMenu() && !invflag && !SpellbookFlag && !QuestLogIsOpen && !CharFlag && !DoomFlag; });
+#else
 	    []() { return CanPlayerTakeAction() && !InGameMenu(); });
+#endif
 	options.Padmapper.AddAction(
 	    "CancelAction",
 	    N_("Cancel action"),
@@ -2407,7 +2415,11 @@ void InitPadmapActions()
 	    "DisplaySpells",
 	    N_("Speedbook"),
 	    N_("Open Speedbook."),
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-BOTONES3: hechizos rapidos con Y */
+	    ControllerButton_BUTTON_X,
+#else
 	    ControllerButton_BUTTON_A,
+#endif
 	    [] {
 		    ProcessGameAction(GameAction { GameActionType_TOGGLE_QUICK_SPELL_MENU });
 	    },
@@ -3119,12 +3131,12 @@ void LoadGameLevelStopMusic(_music_id neededTrack)
 		music_stop();
 }
 
-#ifdef __NDS__
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS */
 extern "C" void nds_extra_mark(const char *name); /* NDS-MUSDESBLOQUEO */
 #endif
 void LoadGameLevelStartMusic(_music_id neededTrack)
 {
-#ifdef __NDS__ /* NDS-MUSDESBLOQUEO: la musica de este piso queda desbloqueada en Soundtrack */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS2 NDS-MUSDESBLOQUEO: la musica de este piso queda desbloqueada en Soundtrack */
 	if (neededTrack < NUM_MUSIC) {
 		char ndsN[8] = "mus0";
 		ndsN[3] = static_cast<char>('0' + static_cast<int>(neededTrack));

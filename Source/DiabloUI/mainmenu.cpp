@@ -17,11 +17,20 @@
 #include "DiabloUI/ui_item.h"
 #include "engine/assets.hpp"
 #include "engine/load_clx.hpp"
+#include "engine/load_cl2.hpp" /* HS3DS-BESTIARIO5 */
 #include "engine/point.hpp"
 #include "game_mode.hpp"
 #include "utils/language.h"
 #include "utils/ui_fwd.h"
-#ifdef __NDS__ /* NDS-CREDITOS */
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-MENUS: los menus de Hellspawn DSi */
+#define HS_MENUS 1
+#define NDS_EXTRAS_TXT "sdmc:/3ds/devilutionx/cinematicas.txt"
+#include <3ds.h>
+#elif defined(__NDS__)
+#define HS_MENUS 1
+#define NDS_EXTRAS_TXT "saves/cinematicas.txt"
+#endif
+#ifdef HS_MENUS /* NDS-CREDITOS */
 #include "controls/input.h"
 #include "controls/menu_controls.h"
 #include "utils/algorithm/container.hpp"
@@ -43,6 +52,63 @@
 #include "utils/sdl_compat.h"
 #endif
 
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-MENUS: lo que en la DSi hace nds/sdl_nds.c */
+namespace devilution {
+extern bool HsMenuBottom; /* engine/dx.cpp */
+}
+extern "C" int nds_cine_seen(const char *base)
+{
+	char line[48];
+	int found = 0;
+	FILE *f = std::fopen(NDS_EXTRAS_TXT, "r");
+	if (f == nullptr)
+		return 0;
+	while (found == 0 && std::fgets(line, sizeof line, f) != nullptr) {
+		size_t n = std::strlen(line);
+		while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r' || line[n - 1] == ' '))
+			line[--n] = 0;
+		if (std::strcmp(line, base) == 0)
+			found = 1;
+	}
+	std::fclose(f);
+	return found;
+}
+extern "C" void nds_extra_mark(const char *name)
+{
+	if (name == nullptr || *name == 0 || nds_cine_seen(name) != 0)
+		return;
+	if (FILE *f = std::fopen(NDS_EXTRAS_TXT, "a")) {
+		std::fprintf(f, "%s\n", name);
+		std::fclose(f);
+	}
+}
+extern "C" void hs_cine_mark(const char *path) /* movie.cpp: cinematicas que se desbloquean en Extras */
+{
+	if (path == nullptr)
+		return;
+	const char *p = path;
+	for (const char *q = path; *q != 0; q++)
+		if (*q == '\\' || *q == '/')
+			p = q + 1;
+	char base[40];
+	size_t n = 0;
+	while (p[n] != 0 && p[n] != '.' && n < sizeof base - 1) {
+		const char c = p[n];
+		base[n] = (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+		n++;
+	}
+	base[n] = 0;
+	if (std::strcmp(base, "fprst3") != 0 && std::strncmp(base, "diabvic", 7) != 0 && std::strcmp(base, "diabend") != 0)
+		return;
+	nds_extra_mark(base);
+}
+extern "C" void nds_set_lang_es(int) { }
+extern "C" void nds_ui_mainmenu(int on) { devilution::HsMenuBottom = on != 0; } /* HS3DS-VERSION: en el menu principal se ve la pantalla de abajo */
+extern "C" int nds_get_swap(void) { return 0; }
+extern "C" void nds_set_swap(int) { }
+extern "C" void nds_top_list(const unsigned char *pix, int) { devilution::HsMenuBottom = pix != nullptr; }
+#endif
+
 namespace devilution {
 namespace {
 int mainmenu_attract_time_out; // seconds
@@ -53,7 +119,7 @@ std::vector<std::unique_ptr<UiListItem>> vecMenuItems;
 
 _mainmenu_selections MainMenuResult;
 
-#ifdef __NDS__ /* NDS-IDIOMA: textos propios en espanol o ingles segun el idioma del juego */
+#ifdef HS_MENUS /* NDS-IDIOMA: textos propios en espanol o ingles segun el idioma del juego */
 extern "C" void nds_set_lang_es(int on);
 bool NdsEs()
 {
@@ -82,7 +148,7 @@ void NdsSetLanguage(const char *code)
 }
 #endif
 
-#ifdef __NDS__ /* NDS-CREDITOS: pantalla de agradecimientos de la version DSi */
+#ifdef HS_MENUS /* NDS-CREDITOS: pantalla de agradecimientos de la version DSi */
 constexpr int NdsCreditsValue = MAINMENU_SETTINGS; /* Settings no se muestra en la DSi: se reutiliza su valor */
 
 void NdsShowDsiCredits()
@@ -98,7 +164,20 @@ void NdsShowDsiCredits()
 	};
 	const Line lines[] = {
 		/* NDS-CREDITOS3 */
+#ifdef __3DS__ /* HS3DS-CREDITOS */
+		{ "Hellspawn: Diablo 3DS" /* HS3DS-NOMBRE3 */, 10, UiFlags::FontSize30 | UiFlags::ColorUiGold },
+#else
 		{ "Hellspawn - Diablo DSI", 5, UiFlags::FontSize42 | UiFlags::ColorUiGold },
+#endif
+#ifdef __3DS__ /* HS3DS-CREDITOS4: sin Yagatsu18; Night Stroke tambien hizo el logo */
+		{ NDS_T("Agradecimiento especial a:", "Special thanks to:"), 70, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
+		{ "Night Stroke", 120, UiFlags::FontSize42 | UiFlags::ColorUiGold },
+		{ NDS_T("Assets menu, logo e icono", "Menu assets, logo and icon"), 165, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
+		{ "DevilutionX Team", 225, UiFlags::FontSize42 | UiFlags::ColorUiGold },
+		{ NDS_T("Codigo del Port", "Port code"), 270, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
+		{ "Blizzard North", 330, UiFlags::FontSize42 | UiFlags::ColorUiGold },
+		{ NDS_T("Creadores de Diablo", "Creators of Diablo"), 375, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
+#else
 		{ NDS_T("Agradecimiento especial a:", "Special thanks to:"), 55, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
 		{ "Night Stroke", 95, UiFlags::FontSize42 | UiFlags::ColorUiGold },
 		{ NDS_T("Assets menu e icono", "Menu assets and icon"), 137, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
@@ -108,7 +187,12 @@ void NdsShowDsiCredits()
 		{ NDS_T("Codigo del Port", "Port code"), 305, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
 		{ "Blizzard North", 347, UiFlags::FontSize42 | UiFlags::ColorUiGold },
 		{ NDS_T("Creadores de Diablo", "Creators of Diablo"), 389, UiFlags::FontSize30 | UiFlags::ColorUiSilver },
+#endif
+#ifdef __3DS__ /* HS3DS-CREDITOS2: letra legible a media escala */
+		{ NDS_T("Pulsa un boton para volver", "Press a button to go back"), 436, UiFlags::FontSize24 | UiFlags::ColorUiSilver },
+#else
 		{ NDS_T("Pulsa un boton para volver", "Press a button to go back"), 450, UiFlags::FontSize12 | UiFlags::ColorUiSilverDark },
+#endif
 	};
 	for (const Line &l : lines) {
 		const SDL_Rect rect = { (Sint16)(ui.x), (Sint16)(ui.y + l.y), 640, 50 };
@@ -139,7 +223,7 @@ void NdsShowDsiCredits()
 }
 #endif
 
-#ifdef __NDS__ /* NDS-MENU: menu principal con Extras y Cinematicas */
+#ifdef HS_MENUS /* NDS-MENU: menu principal con Extras y Cinematicas */
 extern "C" int nds_cine_seen(const char *base);
 extern "C" void nds_ui_mainmenu(int on); /* NDS-V12 */
 int NdsMenuMode = 0; /* 0 = principal, 1 = Extras, 2 = Cinematicas */
@@ -163,11 +247,24 @@ bool NdsTrackSeen(int i) /* NDS-MUSICAS: solo las que el jugador ya ha escuchado
 }
 constexpr int NdsBestiaryValue = 105; /* NDS-BESTIARIO + NDS-BESTIARIO3 */
 extern "C" void nds_top_list(const unsigned char *pix, int pitch); /* NDS-BESTIARIO6 */
+/* HS3DS-BESTIARIO5: animacion de un monstruo ('n' quieto, 'a' ataque, 'd' muerte) desde .clx (DSi) o .cl2 (MPQ) */
+OptionalOwnedClxSpriteListOrSheet NdsLoadMonsterAnim(const MonsterData &md, char letter)
+{
+	const std::string_view l(&letter, 1);
+#ifdef UNPACKED_MPQS
+	return LoadOptionalClxListOrSheet(StrCat("monsters\\", md.spritePath(), l, ".clx").c_str());
+#else
+	auto r = LoadCl2ListOrSheetWithStatus(StrCat("monsters\\", md.spritePath(), l).c_str(), PointerOrValue<uint16_t> { md.width }); /* HS3DS-BESTIARIO6: la funcion pone ".cl2" */
+	if (!r.has_value())
+		return std::nullopt;
+	return OptionalOwnedClxSpriteListOrSheet { std::move(*r) };
+#endif
+}
 void NdsShowBestiary()
 {
 	/* monstruos matados: lineas "bN" de saves/cinematicas.txt (el directorio actual es devilutionx) */
 	std::vector<bool> killed(MonstersData.size(), false);
-	if (FILE *f = std::fopen("saves/cinematicas.txt", "r")) {
+	if (FILE *f = std::fopen(NDS_EXTRAS_TXT, "r") /* HS3DS-MENUS3 */) {
 		char line[48];
 		while (std::fgets(line, sizeof line, f) != nullptr) {
 			int id = -1;
@@ -217,7 +314,12 @@ void NdsShowBestiary()
 	UpdateSystemPalette(logical_palette);
 
 	const Point ui = GetUIRectangle().position;
+#ifdef __3DS__ /* HS3DS-BESTIARIO */
+	constexpr int ListY0 = 480, ListTop = 60, RowH = 36, Rows = 10; /* lista en las filas 480-959 = pantalla de abajo */
+	OwnedSurface hsScr(256, 256); /* zona auxiliar para el sprite (en la 3DS toda la superficie se ve) */
+#else
 	constexpr int ListY0 = 260, ListTop = 30, RowH = 14, Rows = 10; /* NDS-BESTIARIO6: lista de la pantalla de arriba */
+#endif
 	constexpr int SprCx = 320, SprBottom = 372, SprMaxW = 560, SprMaxH = 330; /* sprite en medio de la tactil */
 	int sel = 0, top = 0, loadedFor = -1;
 	OptionalOwnedClxSpriteListOrSheet spr, sprDeath;
@@ -248,7 +350,7 @@ void NdsShowBestiary()
 			dying = false;
 			return;
 		}
-		spr = LoadOptionalClxListOrSheet(StrCat("monsters\\", md.spritePath(), "n.clx").c_str());
+		spr = NdsLoadMonsterAnim(md, 'n') /* HS3DS-BESTIARIO5n */;
 		hasTrn = false;
 		if (!md.trnFile.empty()) {
 			if (LoadFileInMemWithStatus(StrCat("monsters\\", md.trnFile, ".trn").c_str(), trn.data(), trn.size()).has_value()) {
@@ -267,7 +369,7 @@ void NdsShowBestiary()
 		attacking = false;
 		const MonsterData &md = MonstersData[static_cast<size_t>(ids[static_cast<size_t>(sel)])];
 		if (!sprDeath)
-			sprDeath = LoadOptionalClxListOrSheet(StrCat("monsters\\", md.spritePath(), "d.clx").c_str());
+			sprDeath = NdsLoadMonsterAnim(md, 'd') /* HS3DS-BESTIARIO5d */;
 		if (!deathSnd)
 			deathSnd = sound_file_load(StrCat("monsters\\", md.soundPath(), "d1.wav").c_str());
 		if (deathSnd)
@@ -281,6 +383,25 @@ void NdsShowBestiary()
 
 		SDL_FillSurfaceRect(DiabloUiSurface(), nullptr, 0);
 		const Surface out(DiabloUiSurface());
+#ifdef __3DS__ /* HS3DS-BESTIARIO2 */
+		{
+			const Surface botOut = out.subregion(0, ListY0, 640, 480);
+			DrawString(botOut, NDS_T("BestiarioDex", "BestiaryDex"), { { 0, 6 }, { 640, 46 } }, { .flags = UiFlags::FontSize42 | UiFlags::ColorGold | UiFlags::AlignCenter });
+			for (int r = 0; r < Rows && top + r < static_cast<int>(ids.size()); r++) {
+				const int idx = top + r;
+				const MonsterData &mr = MonstersData[static_cast<size_t>(ids[static_cast<size_t>(idx)])];
+				char num[8];
+				std::snprintf(num, sizeof num, "%03d ", idx + 1);
+				const std::string txt = StrCat(idx == sel ? "> " : "", num, known(idx) ? mr.name : std::string("???"));
+				DrawString(botOut, txt, { { 24, ListTop + r * RowH }, { 592, RowH } },
+				    { .flags = UiFlags::FontSize30 | (idx == sel ? UiFlags::ColorWhitegold : UiFlags::ColorGold) });
+			}
+			if (!ids.empty())
+				DrawString(botOut, StrCat(NDS_T("Matados ", "Killed "), killCount, " / ", static_cast<int>(ids.size())), { { 0, ListTop + Rows * RowH + 8 }, { 640, 32 } },
+				    { .flags = UiFlags::FontSize24 | UiFlags::ColorWhitegold | UiFlags::AlignCenter });
+			nds_top_list(out.at(0, ListY0), out.pitch());
+		}
+#else
 		{ /* NDS-BESTIARIO6: la lista se dibuja en una zona oculta (x 0-255, filas 260-451) y va a la pantalla de arriba */
 			for (int y = 0; y < 192; y++)
 				std::memset(out.at(0, ListY0 + y), 0, 256);
@@ -300,6 +421,7 @@ void NdsShowBestiary()
 				    { .flags = UiFlags::FontSize12 | UiFlags::ColorWhitegold | UiFlags::AlignCenter });
 			nds_top_list(out.at(0, ListY0), out.pitch());
 		}
+#endif
 		if (ids.empty()) {
 			DrawString(out, NDS_T("Aun no has matado ningun monstruo", "You have not killed any monster yet"), { { ui.x, ui.y + 200 }, { 640, 40 } }, { .flags = UiFlags::FontSize24 | UiFlags::ColorWhitegold | UiFlags::AlignCenter });
 		} else {
@@ -308,7 +430,7 @@ void NdsShowBestiary()
 			/* NDS-BESTIARIO4: tras 10 s mirandolo, ataca (y otra vez cada 10 s) */
 			if (!dying && !dead && !attacking && known(sel) && SDL_GetTicks() - idleSince >= 10000) {
 				if (!sprAttack)
-					sprAttack = LoadOptionalClxListOrSheet(StrCat("monsters\\", md.spritePath(), "a.clx").c_str());
+					sprAttack = NdsLoadMonsterAnim(md, 'a') /* HS3DS-BESTIARIO5a */;
 				if (!attackSnd)
 					attackSnd = sound_file_load(StrCat("monsters\\", md.soundPath(), "a1.wav").c_str());
 				if (attackSnd)
@@ -345,6 +467,26 @@ void NdsShowBestiary()
 					frame = static_cast<int>((SDL_GetTicks() / step) % static_cast<uint32_t>(nFrames));
 				}
 				const ClxSprite s = list[static_cast<size_t>(frame)];
+#ifdef __3DS__ /* HS3DS-BESTIARIO3 */
+				const int sw = std::min<int>(s.width(), 256), sh = std::min<int>(s.height(), 256);
+				SDL_FillSurfaceRect(hsScr.surface, nullptr, 0);
+				if (hasTrn)
+					ClxDrawTRN(hsScr, { 0, 255 }, s, trn.data());
+				else
+					ClxDraw(hsScr, { 0, 255 }, s);
+				const int k10 = std::max(10, std::min(25, std::min(SprMaxW * 10 / std::max(sw, 1), SprMaxH * 10 / std::max(sh, 1))));
+				const int dw = sw * k10 / 10, dh = sh * k10 / 10;
+				const int dx0 = ui.x + SprCx - dw / 2, dy0 = ui.y + SprBottom - dh;
+				for (int y = 0; y < dh; y++) {
+					const uint8_t *src = hsScr.at(0, 256 - sh + y * 10 / k10);
+					uint8_t *dst = out.at(dx0, dy0 + y);
+					for (int x = 0; x < dw; x++) {
+						const uint8_t v = src[x * 10 / k10];
+						if (v != 0)
+							dst[x] = v;
+					}
+				}
+#else
 				/* dibujar a 1:1 en la zona oculta (x 0-255, filas 0-255) y copiar ampliado 1,5x */
 				const int sw = std::min<int>(s.width(), 256), sh = std::min<int>(s.height(), 256);
 				for (int y = 0; y < 256; y++)
@@ -368,6 +510,7 @@ void NdsShowBestiary()
 				}
 				for (int y = 0; y < 256; y++) /* limpiar la zona oculta */
 					std::memset(out.at(0, y), 0, 256);
+#endif
 			}
 			if (!known(sel)) /* NDS-BESTIARIO6: hueco del sprite, en medio */
 				DrawString(out, "???", { { ui.x, ui.y + 170 }, { 640, 60 } }, { .flags = UiFlags::FontSize42 | UiFlags::ColorGold | UiFlags::AlignCenter });
@@ -404,6 +547,28 @@ void NdsShowBestiary()
 				else if (a == MenuAction_PAGE_DOWN && !ids.empty())
 					sel = std::min(static_cast<int>(ids.size()) - 1, sel + Rows);
 			}
+#ifdef __3DS__ /* HS3DS-BESTIARIO4 */
+			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) { /* la tactil es la lista */
+				touchPosition tp;
+				hidTouchRead(&tp);
+				if (ids.empty()) {
+					done = true; /* sin monstruos: volver */
+				} else if (tp.px != 0 || tp.py != 0) {
+					const int ty = tp.py * 2; /* fila de la lista (0-479) */
+					if (ty < ListTop) {
+						sel = std::max(0, sel - Rows); /* arriba del todo: pagina anterior */
+					} else if (ty >= ListTop + Rows * RowH) {
+						sel = std::min(static_cast<int>(ids.size()) - 1, sel + Rows); /* abajo del todo: pagina siguiente */
+					} else {
+						const int idx = top + (ty - ListTop) / RowH;
+						if (idx == sel)
+							startDeath(); /* tocar el elegido: se muere */
+						else if (idx < static_cast<int>(ids.size()))
+							sel = idx;
+					}
+				}
+			}
+#else
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) { /* NDS-BESTIARIO6: la tactil es el monstruo */
 				const int mx = event.button.x - ui.x;
 				if (ids.empty()) {
@@ -418,6 +583,7 @@ void NdsShowBestiary()
 					startDeath(); /* en medio: se muere */
 				}
 			}
+#endif
 			UiHandleEvents(&event);
 		}
 		if (sel < top)
@@ -455,33 +621,39 @@ void UiMainMenuSelect(size_t value)
 	MainMenuResult = (_mainmenu_selections)vecMenuItems[value]->m_value;
 }
 
-#ifndef NOEXIT
+#if !defined(NOEXIT) || defined(HS_MENUS) /* HS3DS-ATRAS: B vuelve atras en los submenus */
 void MainmenuEsc()
 {
-#ifdef __NDS__ /* NDS-MENU: en los submenus, B vuelve atras */
+#ifdef HS_MENUS /* NDS-MENU: en los submenus, B vuelve atras */
 	if (NdsMenuMode != 0) {
 		MainMenuResult = static_cast<_mainmenu_selections>(NdsBackValue);
 		return;
 	}
 #endif
+#ifndef NOEXIT /* HS3DS-ATRAS2 */
 	const std::size_t last = vecMenuItems.size() - 1;
 	if (SelectedItem == last) {
 		UiMainMenuSelect(last);
 	} else {
 		SelectedItem = last;
 	}
+#endif
 }
 #endif
 
 void MainmenuLoad(const char *name)
 {
-#ifdef __NDS__ /* NDS-MENU */
+#ifdef HS_MENUS /* NDS-MENU */
 	if (NdsMenuMode == 1) {
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Cinematicas", "Cinematics")), NdsCineMenuValue));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Soundtrack"), NdsSoundValue)); /* NDS-MENU2 */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("BestiarioDex", "BestiaryDex")), NdsBestiaryValue)); /* NDS-BESTIARIO + NDS-BESTIARIODEX */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Credits"), MAINMENU_SHOW_CREDITS));
+#ifdef __3DS__ /* HS3DS-CREDITOS3 */
+		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Creditos 3DS Ver.", "3DS Ver. Credits")), NdsCreditsValue));
+#else
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Creditos DSI Ver.", "DSi Ver. Credits")), NdsCreditsValue));
+#endif
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
 	} else if (NdsMenuMode == 3) { /* NDS-MENU2: Soundtrack */
 		for (int i = 0; i < 6; i++)
@@ -492,7 +664,9 @@ void MainmenuLoad(const char *name)
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NdsEs() ? "> Espa\xC3\xB1ol" : "Espa\xC3\xB1ol"), NdsLangEs));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Volver", "Back")), NdsBackValue));
 	} else if (NdsMenuMode == 5) { /* NDS-OPCIONES: Opciones */
+#ifndef __3DS__ /* HS3DS-OPCIONES: sin intercambiar pantallas */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Pantallas", "Screens")), NdsScreensValue));
+#endif
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Idioma", "Language")), NdsLangValue));
 		if (HaveHellfire()) /* NDS-JUEGO: solo con Hellfire en la SD */
 			vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Juego", "Game")), NdsGameValue));
@@ -520,7 +694,9 @@ void MainmenuLoad(const char *name)
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Extras"), NdsExtrasValue));
 		vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view(NDS_T("Opciones", "Options")), NdsOptionsValue)); /* NDS-OPCIONES */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(_("Support"), MAINMENU_SHOW_SUPPORT));
+#ifndef NOEXIT /* HS3DS-SALIR: en la 3DS se sale con HOME */
 		vecMenuItems.push_back(std::make_unique<UiListItem>(gbIsHellfire ? _("Exit Hellfire") : _("Exit Diablo"), MAINMENU_EXIT_DIABLO));
+#endif
 	}
 #else
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Single Player"), MAINMENU_SINGLE_PLAYER));
@@ -530,7 +706,7 @@ void MainmenuLoad(const char *name)
 #endif
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Support"), MAINMENU_SHOW_SUPPORT));
 	vecMenuItems.push_back(std::make_unique<UiListItem>(_("Show Credits"), MAINMENU_SHOW_CREDITS));
-#ifdef __NDS__ /* NDS-CREDITOS */
+#ifdef HS_MENUS /* NDS-CREDITOS */
 	vecMenuItems.push_back(std::make_unique<UiListItem>(std::string_view("Creditos DSI Ver."), NdsCreditsValue));
 #endif
 #ifndef NOEXIT
@@ -555,7 +731,7 @@ void MainmenuLoad(const char *name)
 		vecMainMenuDialog.push_back(std::make_unique<UiArtText>(_("Shareware").data(), rect1, UiFlags::FontSize30 | UiFlags::ColorUiSilver | UiFlags::AlignCenter, 8));
 	}
 
-#ifdef __NDS__ /* NDS-MENU2: listas largas con letra algo mas pequena */
+#ifdef HS_MENUS /* NDS-MENU2: listas largas con letra algo mas pequena */
 	{
 		const bool ndsLarga = NdsMenuMode != 0 && vecMenuItems.size() > 5; /* NDS-OPCIONES */
 		const int ndsAlto = ndsLarga ? 35 : (vecMenuItems.size() > 5 ? 39 : 43); /* NDS-MENUHUECO */
@@ -566,15 +742,21 @@ void MainmenuLoad(const char *name)
 	vecMainMenuDialog.push_back(std::make_unique<UiList>(vecMenuItems, vecMenuItems.size(), uiPosition.x + 64, (uiPosition.y + 192), 510, 43, UiFlags::FontSize42 | UiFlags::ColorUiGold | UiFlags::AlignCenter, 5));
 #endif
 
-#ifdef __NDS__ /* NDS-FRONT + NDS-VERSION: letra 24 centrada, un poco mas arriba */
+#ifdef HS_MENUS /* NDS-FRONT + NDS-VERSION: letra 24 centrada, un poco mas arriba */
 	const SDL_Rect rect2 = { (Sint16)(uiPosition.x), (Sint16)(uiPosition.y + 480 - 28), 640, 26 }; /* NDS-MENUHUECO: texto gris mas abajo */
 	vecMainMenuDialog.push_back(std::make_unique<UiArtText>(name, rect2, UiFlags::FontSize24 | UiFlags::ColorUiSilver | UiFlags::AlignCenter));
+#ifdef __3DS__ /* HS3DS-VERSION2: filas 480-959 = pantalla de abajo (a la mitad) */
+	if (NdsMenuMode == 0) {
+		const SDL_Rect rectV = { 12, 960 - 46, 200, 40 };
+		vecMainMenuDialog.push_back(std::make_unique<UiArtText>("V1.0", rectV, UiFlags::FontSize30 | UiFlags::ColorUiSilver));
+	}
+#endif
 #else
 	const SDL_Rect rect2 = { 17, (Sint16)(gnScreenHeight - 36), 605, 21 };
 	vecMainMenuDialog.push_back(std::make_unique<UiArtText>(name, rect2, UiFlags::FontSize12 | UiFlags::ColorUiSilverDark));
 #endif
 
-#ifndef NOEXIT
+#if !defined(NOEXIT) || defined(HS_MENUS) /* HS3DS-ATRAS3 */
 	UiInitList(nullptr, UiMainMenuSelect, MainmenuEsc, vecMainMenuDialog, true);
 #else
 	UiInitList(nullptr, UiMainMenuSelect, nullptr, vecMainMenuDialog, true);
@@ -608,13 +790,13 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 		mainmenu_restart_repintro(); // for automatic starts
 
 		while (MainMenuResult == MAINMENU_NONE) {
-#ifdef __NDS__ /* NDS-V12: version arriba solo en el menu principal (no en Extras) */
+#ifdef HS_MENUS /* NDS-V12: version arriba solo en el menu principal (no en Extras) */
 			nds_ui_mainmenu(NdsMenuMode == 0 ? 1 : 0);
 			nds_set_lang_es(NdsEs() ? 1 : 0); /* NDS-IDIOMA */
 #endif
 			UiClearScreen();
 			UiPollAndRender();
-#ifdef __NDS__ /* NDS-ATRACCION: solo en el menu principal, no en los submenus */
+#ifdef HS_MENUS /* NDS-ATRACCION: solo en el menu principal, no en los submenus */
 			if (NdsMenuMode == 0 && SDL_GetTicks() >= dwAttractTicks && (HaveIntro() || gbIsHellfire)) {
 #else
 			if (SDL_GetTicks() >= dwAttractTicks && (HaveIntro() || gbIsHellfire)) {
@@ -624,10 +806,10 @@ bool UiMainMenuDialog(const char *name, _mainmenu_selections *pdwResult, int att
 		}
 
 		MainmenuFree();
-#ifdef __NDS__ /* NDS-V12 */
+#ifdef HS_MENUS /* NDS-V12 */
 		nds_ui_mainmenu(0);
 #endif
-#ifdef __NDS__ /* NDS-CREDITOS / NDS-MENU: submenus sin salir del dialogo */
+#ifdef HS_MENUS /* NDS-CREDITOS / NDS-MENU: submenus sin salir del dialogo */
 		{
 			const int r = static_cast<int>(MainMenuResult);
 			if (r == NdsCreditsValue) {

@@ -4200,12 +4200,12 @@ void MonsterDeath(Monster &monster, Direction md, bool sendmsg)
 		AddMissile(monster.position.tile, { 0, 0 }, Direction::South, MissileID::AcidPuddle, TARGET_PLAYERS, monster, monster.intelligence + 1, 0);
 }
 
-#ifdef __NDS__
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS */
 extern "C" void nds_extra_mark(const char *name); /* NDS-BESTIARIO */
 #endif
 void StartMonsterDeath(Monster &monster, const Player &player, bool sendmsg)
 {
-#ifdef __NDS__ /* NDS-BESTIARIO: apuntar el tipo de monstruo que ha matado este jugador */
+#if defined(__NDS__) || (defined(HELLSPAWN) && defined(__3DS__)) /* HS3DS-EXTRAS2 NDS-BESTIARIO: apuntar el tipo de monstruo que ha matado este jugador */
 	if (&player == MyPlayer && !monster.isPlayerMinion()) {
 		char ndsN[12];
 		std::snprintf(ndsN, sizeof ndsN, "b%d", static_cast<int>(monster.type().type));

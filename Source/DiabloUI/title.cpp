@@ -60,8 +60,15 @@ void TitleFree()
 
 } // namespace
 
+#if defined(HELLSPAWN) && defined(__3DS__)
+void HsLog(const char *fmt, ...); /* HS3DS-REGISTRO (dx.cpp) */
+#define HSLOG(...) HsLog(__VA_ARGS__)
+#else
+#define HSLOG(...) ((void)0)
+#endif
 void UiTitleDialog()
 {
+	HSLOG("pantalla de titulo"); /* HS3DS-REGISTRO */
 	TitleLoad();
 	const Point uiPosition = GetUIRectangle().position;
 	if (ArtBackgroundWidescreen.has_value()) {

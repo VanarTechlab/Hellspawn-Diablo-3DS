@@ -35,8 +35,21 @@ bool movie_playing;
 /** Should the movie play in a loop. */
 bool loop_movie;
 
+#if defined(HELLSPAWN) && defined(__3DS__)
+void HsLog(const char *fmt, ...); /* HS3DS-REGISTRO (dx.cpp) */
+#define HSLOG(...) HsLog(__VA_ARGS__)
+#else
+#define HSLOG(...) ((void)0)
+#endif
+#if defined(HELLSPAWN) && defined(__3DS__)
+extern "C" void hs_cine_mark(const char *path); /* HS3DS-MENUS (mainmenu.cpp) */
+#endif
 void play_movie(const char *pszMovie, bool userCanClose)
 {
+	HSLOG("play_movie %s", pszMovie); /* HS3DS-REGISTRO */
+#if defined(HELLSPAWN) && defined(__3DS__)
+	hs_cine_mark(pszMovie); /* HS3DS-MENUS: Extras > Cinematicas */
+#endif
 #ifdef __NDS__ /* NDS-CINEFLUSH: que una pulsacion anterior (la del menu o la del logo) no cierre el video nada mas empezar */
 	{
 		SDL_Event ndsEv;
@@ -142,6 +155,7 @@ void play_movie(const char *pszMovie, bool userCanClose)
 #endif
 	OutputToLogical(&MousePosition.x, &MousePosition.y);
 	InitBackbufferState();
+	HSLOG("play_movie fin"); /* HS3DS-REGISTRO2 */
 }
 
 void PlayInGameMovie(const char *pszMovie)
