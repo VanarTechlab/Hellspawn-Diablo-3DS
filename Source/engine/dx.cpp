@@ -597,10 +597,26 @@ LightEvent HsDone;
 volatile u64 HsWorkerTicks = 0;
 uint64_t HsPerfWorkSum = 0;
 
+volatile bool HsLcdRefresh = false; /* HS3DS-HOME: lo pone el aviso del sistema al volver */
+aptHookCookie HsAptCookie;
+void HsAptHook(APT_HookType hook, void *)
+{
+	if (hook == APTHOOK_ONRESTORE || hook == APTHOOK_ONWAKEUP)
+		HsLcdRefresh = true;
+}
 void HsLcdCheck(SDL_Surface *s)
 { /* HS3DS-LCD: luz de la pantalla de abajo encendida (al empezar y en cada cambio de modo) */
 	static int hsLastW = -1, hsLastH = -1;
 	static bool hsLastRun = false;
+	static bool hsHooked = false;
+	if (!hsHooked) {
+		hsHooked = true;
+		aptHook(&HsAptCookie, HsAptHook, nullptr); /* HS3DS-HOME */
+	}
+	if (HsLcdRefresh) { /* HS3DS-HOME: volver del menu HOME / despertar: encender otra vez */
+		HsLcdRefresh = false;
+		hsLastW = -1;
+	}
 	if (s->w != hsLastW || s->h != hsLastH || gbRunGame != hsLastRun) {
 		hsLastW = s->w;
 		hsLastH = s->h;
@@ -829,8 +845,9 @@ void HsLidCheck()
 		durmiendo = false;
 		tCierre = svcGetSystemTick();
 		alAbrir = false;
-		if (!HS3DS_VOZ_AL_ABRIR && osIsHeadsetConnected() && HsLidCanSay()) { /* HS3DS-TAPA2: con auriculares, al cerrar */
+		if (!HS3DS_VOZ_AL_ABRIR && HsLidCanSay()) { /* HS3DS-TAPA2 + HS3DS-TAPA6: siempre al cerrar (sin mirar auriculares) */
 			HsLidSay();
+			alAbrir = true; /* HS3DS-TAPA5: y otra frase al abrir */
 		} else {
 			alAbrir = HsLidCanSay(); /* sin auriculares no se oye: la frase al abrir */
 			tCierre = 0; /* dormir ya */

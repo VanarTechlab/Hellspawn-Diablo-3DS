@@ -221,6 +221,7 @@ set(devilutionx_assets
   ui_art/hellspawn.clx
   ui_art/hellspawn.pal
   ui_art/hellspawn_arriba.bin
+  ui_art/hs3ds_logo.rgba # HS3DS-LOGOMENU
   nds/guarida.dun
   nds/bosque.dun
   gendata/carnicero.smk # HS-CINE

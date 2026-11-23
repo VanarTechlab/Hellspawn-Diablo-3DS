@@ -560,7 +560,7 @@ endif()
 
 if(NINTENDO_3DS)
   set(APP_TITLE       "Hellspawn: Diablo 3DS") # HS3DS-NOMBRE + HS3DS-NOMBRE3
-  set(APP_DESCRIPTION "Hellspawn v1.0 para New 3DS")
+  set(APP_DESCRIPTION "Hellspawn v1.0.1 para 3DS") # HS3DS-V101
   set(APP_AUTHOR      "Vanar")
   set(APP_ICON        "${PROJECT_SOURCE_DIR}/Packaging/ctr/icon.png")
   set(APP_BANNER      "${PROJECT_SOURCE_DIR}/Packaging/ctr/banner.png")

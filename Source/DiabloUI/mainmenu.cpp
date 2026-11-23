@@ -22,6 +22,9 @@
 #include "game_mode.hpp"
 #include "utils/language.h"
 #include "utils/ui_fwd.h"
+#include "utils/surface_to_clx.hpp" /* HS3DS-LOGOMENU */
+#include <climits>
+#include <vector>
 #if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-MENUS: los menus de Hellspawn DSi */
 #define HS_MENUS 1
 #define NDS_EXTRAS_TXT "sdmc:/3ds/devilutionx/cinematicas.txt"
@@ -616,6 +619,56 @@ void NdsPlayCine(int i)
 }
 #endif
 
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-LOGOMENU2: logo con demonio, pasado a la paleta del menu */
+OptionalOwnedClxSpriteList HsMenuLogo;
+std::string HsMenuLogoError; /* HS3DS-LOGOMENU6 */
+bool HsLoadMenuLogo()
+{
+	constexpr int W = 600, Hh = 300; /* HS3DS-LOGOMENU4 */
+	std::vector<uint8_t> buf(4 + W * Hh * 4);
+	{
+		const auto res = LoadFileInMemWithStatus("ui_art\\hs3ds_logo.rgba", buf.data(), buf.size());
+		if (!res.has_value()) {
+			HsMenuLogoError = StrCat("logo: ", res.error());
+			return false;
+		}
+	}
+	if ((buf[0] | buf[1] << 8) != W || (buf[2] | buf[3] << 8) != Hh) {
+		HsMenuLogoError = StrCat("logo: medida ", buf[0] | buf[1] << 8, "x", buf[2] | buf[3] << 8);
+		return false;
+	}
+	OwnedSurface surf(W, Hh);
+	std::vector<int16_t> lut(32768, -1);
+	for (int y = 0; y < Hh; y++) {
+		uint8_t *dst = surf.at(0, y);
+		const uint8_t *px = &buf[4 + static_cast<size_t>(y) * W * 4];
+		for (int x = 0; x < W; x++, px += 4) {
+			if (px[3] < 128) {
+				dst[x] = 0;
+				continue;
+			}
+			const int key = (px[0] >> 3) << 10 | (px[1] >> 3) << 5 | (px[2] >> 3);
+			if (lut[key] < 0) {
+				int best = 0, bestD = INT_MAX;
+				for (int i = 0; i < 256; i++) {
+					const SDL_Color &c = logical_palette[i];
+					const int dr = px[0] - c.r, dg = px[1] - c.g, db = px[2] - c.b;
+					const int d = 3 * dr * dr + 4 * dg * dg + 2 * db * db;
+					if (d < bestD) {
+						bestD = d;
+						best = i;
+					}
+				}
+				lut[key] = static_cast<int16_t>(best);
+			}
+			dst[x] = static_cast<uint8_t>(lut[key]);
+		}
+	}
+	HsMenuLogo = SurfaceToClx(surf, 1, 0); /* el color 0 (negro) queda transparente */
+	return true;
+}
+#endif
+
 void UiMainMenuSelect(size_t value)
 {
 	MainMenuResult = (_mainmenu_selections)vecMenuItems[value]->m_value;
@@ -722,7 +775,15 @@ void MainmenuLoad(const char *name)
 	}
 
 	UiAddBackground(&vecMainMenuDialog);
+#if defined(HELLSPAWN) && defined(__3DS__) /* HS3DS-LOGOMENU3 */
+	UiAddLogo(&vecMainMenuDialog); /* HS3DS-LOGOMENU5: arriba el logo de siempre */
+	if (NdsMenuMode == 0 && HsLoadMenuLogo()) /* y el demonio en la pantalla de abajo (filas 480-959) */
+		vecMainMenuDialog.push_back(std::make_unique<UiImageClx>((*HsMenuLogo)[0], MakeSdlRect(0, 480 + 70, 0, 0), UiFlags::AlignCenter));
+	else if (NdsMenuMode == 0 && !HsMenuLogoError.empty()) /* HS3DS-LOGOMENU6: decir por que no sale */
+		vecMainMenuDialog.push_back(std::make_unique<UiArtText>(HsMenuLogoError.c_str(), MakeSdlRect(10, 600, 620, 200), UiFlags::FontSize24 | UiFlags::ColorUiSilver));
+#else
 	UiAddLogo(&vecMainMenuDialog);
+#endif
 
 	const Point uiPosition = GetUIRectangle().position;
 
@@ -748,7 +809,7 @@ void MainmenuLoad(const char *name)
 #ifdef __3DS__ /* HS3DS-VERSION2: filas 480-959 = pantalla de abajo (a la mitad) */
 	if (NdsMenuMode == 0) {
 		const SDL_Rect rectV = { 12, 960 - 46, 200, 40 };
-		vecMainMenuDialog.push_back(std::make_unique<UiArtText>("V1.0", rectV, UiFlags::FontSize30 | UiFlags::ColorUiSilver));
+		vecMainMenuDialog.push_back(std::make_unique<UiArtText>("V1.0.1" /* HS3DS-V101 */, rectV, UiFlags::FontSize30 | UiFlags::ColorUiSilver));
 	}
 #endif
 #else
